@@ -137,11 +137,11 @@ export default function AdminLogin({ onSwitchToLogin }: AdminLoginProps) {
       <div className="w-full max-w-md">
         <div className="mb-6 flex flex-col items-center">
           <img
-            src="/assets/imagewhite.png"
+            src="/assets/.png"
             className="w-16 h-16 object-contain mb-2"
           />
           <h1 className="text-4xl font-bold text-white mb-2 text-center">
-            Hamburgueria
+            Nome
           </h1>
         </div>
 

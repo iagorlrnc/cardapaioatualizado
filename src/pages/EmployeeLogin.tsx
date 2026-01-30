@@ -30,11 +30,11 @@ export default function EmployeeLogin({ onSwitchToLogin }: EmployeeLoginProps) {
       <div className="w-full max-w-md">
         <div className="mb-6 flex flex-col items-center">
           <img
-              src="/assets/icon.jpg"
+              src="/assets/.jpg"
               className="w-24 h-24 object-cover rounded-full mb-2"
             />
           <h1 className="text-4xl font-bold text-white mb-2 text-center">
-            Seu Sérgio
+            Nome
           </h1>
         </div>
 

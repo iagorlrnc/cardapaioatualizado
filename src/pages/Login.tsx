@@ -132,11 +132,11 @@ export default function Login({
         <div className="bg-white rounded-lg shadow-2xl p-8">
           <div className="mb-6 flex flex-col items-center">
             <img
-              src="/assets/icon.jpg"
+              src="/assets/.jpg"
               className="w-24 h-24 object-cover rounded-full mb-2"
             />
             <h1 className="text-4xl font-bold text-[#aa341c] mb-2 text-center">
-              Seu Sérgio
+              Nome
             </h1>
           </div>
           <h2 className="text-2xl font-bold text-center mb-6 text-[#aa341c]">

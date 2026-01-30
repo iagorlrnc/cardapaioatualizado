@@ -518,7 +518,7 @@ export default function CustomerOrder() {
           onClick={() => setShowWelcome(false)}
         >
           <img
-            src="/assets/icon.jpg"
+            src="/assets/.jpg"
             alt="Bem-vindo"
             className="w-24 h-24 mb-6 object-cover rounded-full"
           />

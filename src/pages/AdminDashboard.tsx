@@ -439,7 +439,7 @@ export default function AdminDashboard() {
               resolve(""); // Retornar vazio se falhar
             };
 
-            img.src = "/public/assets/icon.jpg";
+            img.src = "/public/assets/.jpg";
           });
         } catch (e) {
           console.warn("Erro ao criar imagem redonda:", e);
