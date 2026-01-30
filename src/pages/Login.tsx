@@ -21,7 +21,7 @@ export default function Login({
   const [clientUsers, setClientUsers] = useState<ClientUser[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"manual" | "qr">("manual");
+  const [showQRReader, setShowQRReader] = useState(false);
   const [loggedInUsers, setLoggedInUsers] = useState<string[]>([]);
   const { login } = useAuth();
 
@@ -106,9 +106,11 @@ export default function Login({
         handleQRLogin(data.table);
       } else {
         setError("QR code inválido. Tente novamente.");
+        setShowQRReader(false);
       }
     } catch {
       setError("Erro ao processar QR code");
+      setShowQRReader(false);
     }
   };
 
@@ -121,6 +123,7 @@ export default function Login({
       setError("Erro ao acessar com QR code");
       setLoading(false);
     }
+    setShowQRReader(false);
   };
 
   return (
@@ -140,78 +143,53 @@ export default function Login({
             Cardápio
           </h2>
 
-          {/* Tabs */}
-          <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setActiveTab("manual")}
-              className={`flex-1 py-2 px-4 rounded-md font-medium transition ${
-                activeTab === "manual"
-                  ? "bg-white text-[#aa341c] shadow-sm"
-                  : "text-gray-600 hover:text-[#aa341c]"
-              }`}
-            >
-              Selecionar Mesa
-            </button>
-            <button
-              onClick={() => setActiveTab("qr")}
-              className={`flex-1 py-2 px-4 rounded-md font-medium transition ${
-                activeTab === "qr"
-                  ? "bg-white text-[#aa341c] shadow-sm"
-                  : "text-gray-600 hover:text-[#aa341c]"
-              }`}
-            >
-              📱 Ler QR Code
-            </button>
-          </div>
-
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
               {error}
             </div>
           )}
 
-          {activeTab === "manual" && (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Selecione sua Mesa
-                </label>
-                <select
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#aa341c] focus:border-transparent outline-none transition bg-white"
-                  required
-                >
-                  <option value="">-- Escolha uma mesa --</option>
-                  {clientUsers.map((user) => (
-                    <option
-                      key={user.id}
-                      value={user.username}
-                      disabled={loggedInUsers.includes(user.username)}
-                    >
-                      Mesa {user.username}
-                      {loggedInUsers.includes(user.username) ? " (Em uso)" : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#aa341c] text-white py-3 rounded-lg font-semibold hover:bg-[#8f2e18] transition disabled:opacity-50 disabled:cursor-not-allowed"
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Selecione sua Mesa
+              </label>
+              <select
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#aa341c] focus:border-transparent outline-none transition bg-white"
+                required
               >
-                {loading ? "Entrando..." : "Entrar"}
-              </button>
-            </form>
-          )}
+                <option value="">-- Escolha uma mesa --</option>
+                {clientUsers.map((user) => (
+                  <option
+                    key={user.id}
+                    value={user.username}
+                    disabled={loggedInUsers.includes(user.username)}
+                  >
+                    Mesa {user.username}
+                    {loggedInUsers.includes(user.username) ? " (Em uso)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {activeTab === "qr" && (
-            <QRCodeReader
-              onQRCodeDetected={handleQRCodeDetected}
-              onClose={() => setActiveTab("manual")}
-            />
-          )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#aa341c] text-white py-3 rounded-lg font-semibold hover:bg-[#8f2e18] transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? "Entrando..." : "Entrar"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowQRReader(true)}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
+            >
+              📱 Ler QR Code
+            </button>
+          </form>
 
           <div className="mt-6 text-center">
             <button
@@ -232,6 +210,13 @@ export default function Login({
           </div>
         </div>
       </div>
+
+      {showQRReader && (
+        <QRCodeReader
+          onQRCodeDetected={handleQRCodeDetected}
+          onClose={() => setShowQRReader(false)}
+        />
+      )}
     </div>
   );
 }
