@@ -524,8 +524,6 @@ export default function CustomerOrder() {
           />
           <h1 className="text-4xl font-bold text-white mb-4 text-center break-words max-[480px]:text-center">
             Bem-vindo
-            <br />
-            ao Seu Sérgio!
           </h1>
           <p className="text-lg text-white mb-8">
             Clique na tela para acessar o cardápio.
