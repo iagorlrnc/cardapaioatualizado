@@ -18,17 +18,21 @@ export function QRCodeReader({ onQRCodeDetected, onClose }: QRCodeReaderProps) {
     const requestCameraPermission = async () => {
       try {
         // Solicitar acesso à câmera
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+        });
+
         // Se conseguiu, parar o stream e marcar como permitido
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
         setPermissionGranted(true);
         setError("");
       } catch (err) {
         // Se negou ou há erro
         if (err instanceof DOMException) {
           if (err.name === "NotAllowedError") {
-            setError("Permissão de câmera negada. Verifique as configurações do seu navegador.");
+            setError(
+              "Permissão de câmera negada. Verifique as configurações do seu navegador.",
+            );
           } else if (err.name === "NotFoundError") {
             setError("Nenhuma câmera encontrada neste dispositivo.");
           } else {
@@ -160,7 +164,8 @@ export function QRCodeReader({ onQRCodeDetected, onClose }: QRCodeReaderProps) {
             Permissão de Câmera Negada
           </p>
           <p className="text-gray-300 text-center text-sm">
-            {error || "Você negou o acesso à câmera. Para usar o leitor de QR code, você precisa permitir o acesso."}
+            {error ||
+              "Você negou o acesso à câmera. Para usar o leitor de QR code, você precisa permitir o acesso."}
           </p>
           <button
             onClick={handleClose}
