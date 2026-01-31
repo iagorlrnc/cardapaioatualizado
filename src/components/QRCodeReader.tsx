@@ -78,9 +78,12 @@ export function QRCodeReader({ onQRCodeDetected, onClose }: QRCodeReaderProps) {
       </div>
 
       {/* Quadrado indicativo no centro */}
-      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-4 border-white pointer-events-none rounded-lg shadow-lg" style={{
-        boxShadow: "0 0 0 2000px rgba(0, 0, 0, 0.3)"
-      }} />
+      <div
+        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-4 border-white pointer-events-none rounded-lg shadow-lg"
+        style={{
+          boxShadow: "0 0 0 2000px rgba(0, 0, 0, 0.3)",
+        }}
+      />
 
       {/* Texto informativo */}
       <div className="absolute bottom-8 left-0 right-0 flex justify-center">
