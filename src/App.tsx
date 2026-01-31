@@ -11,7 +11,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, loginBySlug } = useAuth();
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [showEmployeeLogin, setShowEmployeeLogin] = useState(false);
   const navigate = useNavigate();
@@ -22,10 +22,15 @@ function AppContent() {
       // Se usuário está logado mas a URL não tem slug, redirecionar
       navigate(`/${user.slug}`, { replace: true });
     } else if (!user && userSlug) {
-      // Se usuário não está logado mas há slug na URL, ir para login
-      navigate("/", { replace: true });
+      // Se usuário não está logado mas há slug na URL, tentar login automático
+      (async () => {
+        const success = await loginBySlug(userSlug);
+        if (!success) {
+          navigate("/", { replace: true });
+        }
+      })();
     }
-  }, [user, userSlug, navigate]);
+  }, [user, userSlug, navigate, loginBySlug]);
 
   if (loading) {
     return (

@@ -16,6 +16,7 @@ interface AuthContextType {
     isEmployee?: boolean,
     isQRLogin?: boolean,
   ) => Promise<boolean>;
+  loginBySlug: (slug: string, isQRLogin?: boolean) => Promise<boolean>;
   register: (
     username: string,
     phone: string,
@@ -114,6 +115,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginBySlug = async (
+    slug: string,
+    isQRLogin: boolean = true,
+  ): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("slug", slug)
+        .eq("is_admin", false)
+        .eq("is_employee", false)
+        .maybeSingle();
+
+      if (error || !data) {
+        return false;
+      }
+
+      const userData: User = {
+        id: data.id,
+        username: data.username,
+        phone: data.phone,
+        is_admin: data.is_admin,
+        is_employee: data.is_employee,
+        slug: data.slug,
+      };
+
+      try {
+        const { error: sessionError } = await supabase
+          .from("active_sessions")
+          .upsert(
+            {
+              user_id: data.id,
+              username: data.username,
+              login_at: new Date().toISOString(),
+              last_activity: new Date().toISOString(),
+            },
+            { onConflict: "user_id" },
+          );
+        if (sessionError) {
+          console.error("Erro ao registrar sessão:", sessionError);
+        } else {
+          console.log(
+            `Sessão registrada para: ${data.username}${isQRLogin ? " (via QR Code)" : ""}`,
+          );
+        }
+      } catch (sessionError) {
+        console.error("Erro ao registrar sessão:", sessionError);
+      }
+
+      setUser(userData);
+      localStorage.setItem("allblack_user", JSON.stringify(userData));
+      localStorage.setItem("app.current_user", data.username);
+      return true;
+    } catch (error) {
+      console.error("Login by slug error:", error);
+      return false;
+    }
+  };
+
   const register = async (
     username: string,
     phone: string,
@@ -186,7 +246,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, loginBySlug, register, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );
