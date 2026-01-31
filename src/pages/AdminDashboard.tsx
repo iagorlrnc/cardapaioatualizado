@@ -171,11 +171,13 @@ export default function AdminDashboard() {
         const orderedCats = categoryOrderData
           .map((item) => item.category)
           .filter((cat) => allCategories.includes(cat));
-        
+
         // Adicionar novas categorias que não estão no banco
-        const newCats = allCategories.filter((cat) => !orderedCats.includes(cat));
+        const newCats = allCategories.filter(
+          (cat) => !orderedCats.includes(cat),
+        );
         setCategories([...orderedCats, ...newCats]);
-        
+
         // Se há categorias novas, salvar no banco
         if (newCats.length > 0) {
           const maxPosition = categoryOrderData.length;
@@ -286,7 +288,10 @@ export default function AdminDashboard() {
   const handleSaveCategoryOrder = async () => {
     try {
       // Deletar ordem antiga
-      await supabase.from("category_order").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase
+        .from("category_order")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
 
       // Inserir nova ordem
       const categoryOrderData = orderedCategories.map((cat, index) => ({
@@ -294,7 +299,9 @@ export default function AdminDashboard() {
         position: index,
       }));
 
-      const { error } = await supabase.from("category_order").insert(categoryOrderData);
+      const { error } = await supabase
+        .from("category_order")
+        .insert(categoryOrderData);
 
       if (error) {
         throw error;
@@ -838,6 +845,16 @@ export default function AdminDashboard() {
         ? "Item atualizado com sucesso!"
         : "Item adicionado com sucesso!",
     );
+  };
+
+  const handleImageSelection = (file?: File | null) => {
+    if (!file) return;
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setImagePreview(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSaveUser = async (e: React.FormEvent) => {
@@ -1622,8 +1639,17 @@ export default function AdminDashboard() {
                     {} as Record<string, MenuItem[]>,
                   );
 
-                  return Object.entries(groupedItems).map(
-                    ([category, items]) => (
+                  const orderedCategoryKeys = categories
+                    .filter((cat) => groupedItems[cat])
+                    .concat(
+                      Object.keys(groupedItems).filter(
+                        (cat) => !categories.includes(cat),
+                      ),
+                    );
+
+                  return orderedCategoryKeys.map((category) => {
+                    const items = groupedItems[category];
+                    return (
                       <div key={category} className="mb-8">
                         <h3 className="text-xl font-bold text-black mb-4 border-b pb-2">
                           {category.replace(/\b\w/g, (l) => l.toUpperCase())}
@@ -1680,8 +1706,8 @@ export default function AdminDashboard() {
                           ))}
                         </div>
                       </div>
-                    ),
-                  );
+                    );
+                  });
                 })()}
               </div>
             )}
@@ -2373,24 +2399,42 @@ export default function AdminDashboard() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Imagem do Item
                   </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setImageFile(file);
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          setImagePreview(event.target?.result as string);
-                        };
-                        reader.readAsDataURL(file);
-                      }
+                  <label
+                    htmlFor="menu-item-image"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      handleImageSelection(e.dataTransfer.files?.[0]);
                     }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Clique para selecionar uma imagem do seu dispositivo
+                    className="group w-full flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center cursor-pointer transition hover:border-black hover:bg-white"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center text-xl">
+                      +
+                    </div>
+                    <div className="text-sm font-semibold text-gray-700">
+                      Arraste e solte a imagem aqui
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      ou clique para selecionar
+                    </div>
+                    {imageFile && (
+                      <div className="mt-2 text-xs text-gray-700 bg-white border border-gray-200 rounded-full px-3 py-1">
+                        {imageFile.name}
+                      </div>
+                    )}
+                    <input
+                      id="menu-item-image"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) =>
+                        handleImageSelection(e.target.files?.[0])
+                      }
+                      className="hidden"
+                    />
+                  </label>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Formatos aceitos: JPG, PNG, WEBP. Tamanho máximo
+                    recomendado: 5MB.
                   </p>
                 </div>
 
@@ -2622,8 +2666,14 @@ export default function AdminDashboard() {
       )}
 
       {showCategoryReorderModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] flex flex-col">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowCategoryReorderModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg w-full max-w-md max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6 border-b flex items-center justify-between flex-shrink-0">
               <h2 className="text-2xl font-bold text-black">
                 Reordenar Categorias

@@ -61,7 +61,7 @@ export default function CustomerOrder() {
   const toastTimeoutRef = useRef<number | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
 
-  const fetchMenuItems = useCallback(async () => {
+  const fetchMenuItems = async () => {
     const { data } = await supabase
       .from("menu_items")
       .select("*")
@@ -83,18 +83,16 @@ export default function CustomerOrder() {
         const orderedCats = categoryOrderData
           .map((item) => item.category)
           .filter((cat) => allCategories.includes(cat));
-
+        
         // Adicionar categorias novas que não estão no banco
-        const newCats = allCategories.filter(
-          (cat) => !orderedCats.includes(cat),
-        );
+        const newCats = allCategories.filter((cat) => !orderedCats.includes(cat));
         setCategories(["todos", ...orderedCats, ...newCats]);
       } else {
         // Sem ordem salva, usar ordem padrão
         setCategories(["todos", ...allCategories]);
       }
     }
-  }, []);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -255,43 +253,7 @@ export default function CustomerOrder() {
   useEffect(() => {
     fetchMenuItems();
     checkExistingOrder();
-  }, [checkExistingOrder, fetchMenuItems]);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel("menu-items-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "menu_items" },
-        () => {
-          fetchMenuItems();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchMenuItems]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchMenuItems();
-    }, 2000);
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        fetchMenuItems();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [fetchMenuItems]);
+  }, [checkExistingOrder]);
 
   useEffect(() => {
     if (currentOrder) {
@@ -850,22 +812,8 @@ export default function CustomerOrder() {
                     {} as Record<string, MenuItem[]>,
                   );
 
-                  // Renderizar categorias na ordem salva no banco de dados
-                  const orderedCategoryKeys = categories
-                    .filter((cat) => cat !== "todos" && groupedItems[cat])
-                    .concat(
-                      Object.keys(groupedItems).filter(
-                        (cat) => !categories.includes(cat),
-                      ),
-                    );
-
-                  return orderedCategoryKeys.map((category) => {
-                    const items = [...groupedItems[category]].sort((a, b) =>
-                      a.name.localeCompare(b.name, "pt-BR", {
-                        sensitivity: "base",
-                      }),
-                    );
-                    return (
+                  return Object.entries(groupedItems).map(
+                    ([category, items]) => (
                       <div key={category} className="mb-8">
                         <h2 className="text-2xl font-bold text-gray-900 mb-4 border-b pb-2">
                           {category.replace(/\b\w/g, (l) => l.toUpperCase())}
@@ -910,8 +858,8 @@ export default function CustomerOrder() {
                           ))}
                         </div>
                       </div>
-                    );
-                  });
+                    ),
+                  );
                 })()}
               </div>
             </div>

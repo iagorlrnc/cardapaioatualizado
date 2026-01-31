@@ -163,7 +163,7 @@ export default function Login({
               onClick={() => setShowQRReader(true)}
               className="w-full bg-gray-600 text-white py-2 rounded-lg font-semibold hover:bg-gray-700 transition"
             >
-              📱 Ler QR Code
+            	Ler QR Code
             </button>
 
             <button

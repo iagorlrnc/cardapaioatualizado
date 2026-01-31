@@ -73,7 +73,7 @@ export function UserQRCodeDisplay({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-xl max-w-md w-full p-8"
+        className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 sm:p-8 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">
