@@ -85,7 +85,7 @@ export default function Login({
   const handleQRCodeDetected = async (data: string) => {
     try {
       // Extrair a slug da URL do QR code
-      // Format esperado: https://domain.com/mesa-123-uuid ou /mesa-123-uuid
+      // Formato esperado: https://domain.com/mesa-123-uuid ou /mesa-123-uuid
       const urlParts = data.split("/");
       const slug = urlParts[urlParts.length - 1];
 

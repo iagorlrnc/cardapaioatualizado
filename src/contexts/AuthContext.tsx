@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Inicia novo timer para 10 minutos (600000ms)
     const timer = setTimeout(() => {
       logout();
-    }, 60000); // 10 minutos
+    }, 600000); // 10 minutos
     setLogoutTimer(timer);
   };
 
