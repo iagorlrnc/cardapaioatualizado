@@ -1,33 +1,60 @@
 import { useState, useRef } from "react";
 import { QRCodeSVG as QRCode } from "qrcode.react";
-import { X, Download, Share2 } from "lucide-react";
+import { X, Download, Share2, Copy } from "lucide-react";
 
 interface QRCodeGeneratorProps {
-  cartData: any;
+  userSlug: string;
   onClose: () => void;
 }
 
-export function QRCodeGenerator({ cartData, onClose }: QRCodeGeneratorProps) {
+export function QRCodeGenerator({ userSlug, onClose }: QRCodeGeneratorProps) {
   const qrRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
-  const qrValue = JSON.stringify(cartData);
+  // Gerar URL completa do usuário (domínio + slug)
+  const userUrl = `${window.location.origin}/${userSlug}`;
+  const qrValue = userUrl;
 
   const downloadQRCode = () => {
-    const element = qrRef.current?.querySelector("canvas");
-    if (element) {
-      const url = element.toDataURL("image/png");
+    const svg = qrRef.current?.querySelector("svg");
+    if (!svg) return;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const img = new Image();
+
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
       const link = document.createElement("a");
-      link.href = url;
-      link.download = "pedido-qrcode.png";
+      link.href = canvas.toDataURL("image/png");
+      link.download = `pedido-qrcode.png`;
       link.click();
-    }
+    };
+
+    img.src = "data:image/svg+xml;base64," + btoa(svgData);
   };
 
   const shareQRCode = async () => {
-    const element = qrRef.current?.querySelector("canvas");
-    if (element) {
-      const url = element.toDataURL("image/png");
+    const svg = qrRef.current?.querySelector("svg");
+    if (!svg) return;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const img = new Image();
+
+    img.onload = async () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      const url = canvas.toDataURL("image/png");
 
       if (navigator.share) {
         try {
@@ -38,18 +65,24 @@ export function QRCodeGenerator({ cartData, onClose }: QRCodeGeneratorProps) {
 
           await navigator.share({
             title: "Seu Sérgio - Pedido",
-            text: "Compartilhe este QR code com outra pessoa para adicionar itens ao pedido",
+            text: `Acesse ${userUrl}`,
             files: [file],
           });
         } catch (error) {
           console.error("Erro ao compartilhar:", error);
         }
       } else {
-        // Fallback: copiar para clipboard
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        handleCopy();
       }
-    }
+    };
+
+    img.src = "data:image/svg+xml;base64," + btoa(svgData);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(userUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -84,6 +117,7 @@ export function QRCodeGenerator({ cartData, onClose }: QRCodeGeneratorProps) {
               bgColor="#ffffff"
             />
           </div>
+          <p className="text-xs text-gray-500 mt-4 break-all">{userUrl}</p>
         </div>
 
         <div className="space-y-2">
@@ -100,7 +134,15 @@ export function QRCodeGenerator({ cartData, onClose }: QRCodeGeneratorProps) {
             className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
           >
             <Share2 className="w-4 h-4" />
-            {copied ? "Copiado!" : "Compartilhar"}
+            Compartilhar
+          </button>
+
+          <button
+            onClick={handleCopy}
+            className="w-full flex items-center justify-center gap-2 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300 transition"
+          >
+            <Copy className="w-4 h-4" />
+            {copied ? "Copiado!" : "Copiar Link"}
           </button>
 
           <button

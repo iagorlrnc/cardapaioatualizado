@@ -149,6 +149,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         username,
         phone,
         password_hash: password,
+        slug: (() => {
+          const base = username
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, "-")
+            .replace(/[^a-z0-9-]/g, "")
+            .replace(/-+/g, "-")
+            .replace(/^-|-$/g, "");
+          const suffix =
+            typeof crypto !== "undefined" && "randomUUID" in crypto
+              ? crypto.randomUUID().slice(0, 8)
+              : Math.random().toString(36).slice(2, 10);
+          return base ? `${base}-${suffix}` : suffix;
+        })(),
         is_admin: false,
       });
 

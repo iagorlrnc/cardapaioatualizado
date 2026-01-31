@@ -17,6 +17,21 @@ import jsPDF from "jspdf";
 
 type TabType = "dashboard" | "menu" | "orders" | "users" | "performance";
 
+const generateSlug = (value: string) => {
+  const base = value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  const suffix =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).slice(2, 10);
+  return base ? `${base}-${suffix}` : suffix;
+};
+
 const getPaymentMethodLabel = (paymentMethod: string) => {
   switch (paymentMethod) {
     case "pix":
@@ -699,18 +714,14 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Gerar email e telefone padrão para clientes
-      const isCliente = !userFormData.is_admin && !userFormData.is_employee;
-      const email = isCliente
-        ? `mesa${userFormData.username}@allblack.com`
-        : `${userFormData.username}@allblack.com`;
+      // Gerar telefone padrão quando não informado
       const phone = userFormData.phone || "0000000000";
 
       const { error } = await supabase.from("users").insert({
         username: userFormData.username,
-        email: email,
         phone: phone,
         password_hash: userFormData.password,
+        slug: generateSlug(userFormData.username),
         is_admin: userFormData.is_admin,
         is_employee: userFormData.is_employee,
       });

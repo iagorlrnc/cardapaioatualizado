@@ -8,7 +8,22 @@ interface AdminLoginProps {
   onSwitchToEmployee: () => void;
 }
 
-type UserType = "admin" | "employee" | "customer";
+type UserType = "admin" | "employee";
+
+const generateSlug = (value: string) => {
+  const base = value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  const suffix =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).slice(2, 10);
+  return base ? `${base}-${suffix}` : suffix;
+};
 
 export default function AdminLogin({
   onSwitchToLogin,
@@ -45,33 +60,6 @@ export default function AdminLogin({
     }
   };
 
-  const handleUsernameInput = (value: string) => {
-    if (userType === "customer") {
-      // Apenas números
-      const numOnly = value.replace(/\D/g, "");
-
-      let formatted = "";
-      if (numOnly.length === 0) {
-        formatted = "";
-      } else if (numOnly.length === 1) {
-        // Se tem 1 dígito (1-9), adiciona 0 na frente
-        const digit = parseInt(numOnly);
-        if (digit >= 1 && digit <= 9) {
-          formatted = "0" + numOnly;
-        } else {
-          formatted = numOnly;
-        }
-      } else {
-        // Se tem 2+ dígitos, pega os últimos 2
-        formatted = numOnly.slice(-2);
-      }
-
-      setRegUsername(formatted);
-    } else {
-      setRegUsername(value);
-    }
-  };
-
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegError("");
@@ -82,28 +70,20 @@ export default function AdminLogin({
       return;
     }
 
-    // Para cliente, validar que tem exatamente 2 dígitos
-    if (userType === "customer" && regUsername.length !== 2) {
-      setRegError("Número da mesa deve ter 2 dígitos");
+    // Para admin e funcionário, validar campos adicionais
+    if (!regPhone.trim()) {
+      setRegError("Telefone é obrigatório");
       return;
     }
 
-    // Para admin e funcionário, validar campos adicionais
-    if (userType !== "customer") {
-      if (!regPhone.trim()) {
-        setRegError("Telefone é obrigatório");
-        return;
-      }
+    if (regPassword.length < 6) {
+      setRegError("A senha deve ter no mínimo 6 caracteres");
+      return;
+    }
 
-      if (regPassword.length < 6) {
-        setRegError("A senha deve ter no mínimo 6 caracteres");
-        return;
-      }
-
-      if (regPassword !== regConfirmPassword) {
-        setRegError("As senhas não coincidem");
-        return;
-      }
+    if (regPassword !== regConfirmPassword) {
+      setRegError("As senhas não coincidem");
+      return;
     }
 
     if (!adminAuthUsername.trim() || !adminAuthPassword.trim()) {
@@ -144,17 +124,13 @@ export default function AdminLogin({
       // Preparar dados do novo usuário
       const newUserData: any = {
         username: regUsername,
-        password_hash: regPassword || "customer",
+        password_hash: regPassword,
+        slug: generateSlug(regUsername),
         is_admin: userType === "admin",
         is_employee: userType === "employee",
       };
 
-      // Adicionar telefone se não for cliente
-      if (userType !== "customer") {
-        newUserData.phone = regPhone;
-      } else {
-        newUserData.phone = "0000000000"; // Telefone padrão para clientes
-      }
+      newUserData.phone = regPhone;
 
       // Criar novo usuário
       const { error: insertError } = await supabase
@@ -168,11 +144,7 @@ export default function AdminLogin({
       }
 
       const userTypeLabel =
-        userType === "admin"
-          ? "Administrador"
-          : userType === "employee"
-            ? "Funcionário"
-            : "Cliente";
+        userType === "admin" ? "Administrador" : "Funcionário";
 
       toast.success(
         `${userTypeLabel} criado com sucesso! Faça login para continuar.`,
@@ -304,86 +276,62 @@ export default function AdminLogin({
                   >
                     <option value="admin">Administrador</option>
                     <option value="employee">Funcionário</option>
-                    <option value="customer">Cliente (Mesa)</option>
                   </select>
                 </div>
 
-                {userType === "customer" ? (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Número da Mesa
-                      </label>
-                      <input
-                        type="text"
-                        value={regUsername}
-                        onChange={(e) => handleUsernameInput(e.target.value)}
-                        placeholder="Ex: 01"
-                        maxLength={3}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition text-center text-lg font-semibold"
-                        required
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Digite números (1-99). O 0 será adicionado
-                        automaticamente antes do primeiro dígito.
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Nome de Usuário
-                      </label>
-                      <input
-                        type="text"
-                        value={regUsername}
-                        onChange={(e) => setRegUsername(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
-                        required
-                      />
-                    </div>
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nome de Usuário
+                    </label>
+                    <input
+                      type="text"
+                      value={regUsername}
+                      onChange={(e) => setRegUsername(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
+                      required
+                    />
+                  </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Telefone
-                      </label>
-                      <input
-                        type="tel"
-                        value={regPhone}
-                        onChange={(e) => setRegPhone(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
-                        required
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Telefone
+                    </label>
+                    <input
+                      type="tel"
+                      value={regPhone}
+                      onChange={(e) => setRegPhone(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
+                      required
+                    />
+                  </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Senha
-                      </label>
-                      <input
-                        type="password"
-                        value={regPassword}
-                        onChange={(e) => setRegPassword(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
-                        required
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Senha
+                    </label>
+                    <input
+                      type="password"
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
+                      required
+                    />
+                  </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Confirmar Senha
-                      </label>
-                      <input
-                        type="password"
-                        value={regConfirmPassword}
-                        onChange={(e) => setRegConfirmPassword(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
-                        required
-                      />
-                    </div>
-                  </>
-                )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Confirmar Senha
+                    </label>
+                    <input
+                      type="password"
+                      value={regConfirmPassword}
+                      onChange={(e) => setRegConfirmPassword(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
+                      required
+                    />
+                  </div>
+                </>
 
                 <div className="border-t pt-4">
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">
