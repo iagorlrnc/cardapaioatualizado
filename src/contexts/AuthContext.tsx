@@ -32,14 +32,32 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [logoutTimer, setLogoutTimer] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("allblack_user");
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      // Se é um cliente (customer), inicia o timer de auto-logout
+      if (!parsedUser.is_admin && !parsedUser.is_employee) {
+        startAutoLogoutTimer();
+      }
     }
     setLoading(false);
   }, []);
+
+  const startAutoLogoutTimer = () => {
+    // Limpar timer anterior se existir
+    if (logoutTimer) {
+      clearTimeout(logoutTimer);
+    }
+    // Inicia novo timer para 10 minutos (600000ms)
+    const timer = setTimeout(() => {
+      logout();
+    }, 600000); // 10 minutos
+    setLogoutTimer(timer);
+  };
 
   const login = async (
     username: string,
@@ -108,6 +126,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData);
       localStorage.setItem("allblack_user", JSON.stringify(userData));
       localStorage.setItem("app.current_user", username);
+
+      // Se é um cliente (customer), inicia o timer de auto-logout
+      if (!userData.is_admin && !userData.is_employee) {
+        startAutoLogoutTimer();
+      }
+
       return true;
     } catch (error) {
       console.error("Login error:", error);
@@ -167,6 +191,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData);
       localStorage.setItem("allblack_user", JSON.stringify(userData));
       localStorage.setItem("app.current_user", data.username);
+
+      // Se é um cliente (customer), inicia o timer de auto-logout
+      if (!userData.is_admin && !userData.is_employee) {
+        startAutoLogoutTimer();
+      }
+
       return true;
     } catch (error) {
       console.error("Login by slug error:", error);
@@ -238,6 +268,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    // Limpar timer de auto-logout
+    if (logoutTimer) {
+      clearTimeout(logoutTimer);
+      setLogoutTimer(null);
+    }
     // A sessão ativa NÃO é removida no logout do cliente
     // A mesa permanece marcada como "em uso" até que o funcionário a libere explicitamente
     setUser(null);
