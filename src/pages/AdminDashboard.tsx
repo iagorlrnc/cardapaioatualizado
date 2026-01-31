@@ -10,6 +10,8 @@ import {
   X,
   BarChart3,
   ChevronDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase, MenuItem, Order, OrderItem, User } from "../lib/supabase";
@@ -99,6 +101,8 @@ export default function AdminDashboard() {
     is_employee: false,
   });
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+  const [showCategoryReorderModal, setShowCategoryReorderModal] = useState(false);
+  const [orderedCategories, setOrderedCategories] = useState<string[]>([]);
   const [employeePerformance, setEmployeePerformance] = useState<
     Array<{
       userId: string;
@@ -153,7 +157,23 @@ export default function AdminDashboard() {
       .order("created_at", { ascending: false });
     if (data) {
       setMenuItems(data);
-      setCategories([...new Set(data.map((item) => item.category))]);
+      const allCategories = [...new Set(data.map((item) => item.category))];
+      
+      // Carregar ordem salva no localStorage
+      const savedOrder = localStorage.getItem("category_order");
+      if (savedOrder) {
+        try {
+          const parsedOrder = JSON.parse(savedOrder);
+          // Manter a ordem salva, adicionar novas categorias no final
+          const orderedCats = parsedOrder.filter((cat: string) => allCategories.includes(cat));
+          const newCats = allCategories.filter((cat) => !orderedCats.includes(cat));
+          setCategories([...orderedCats, ...newCats]);
+        } catch {
+          setCategories(allCategories);
+        }
+      } else {
+        setCategories(allCategories);
+      }
     }
   };
 
@@ -212,6 +232,39 @@ export default function AdminDashboard() {
       .select("*")
       .order("created_at", { ascending: false });
     if (data) setUsers(data);
+  };
+
+  const handleOpenCategoryReorder = () => {
+    setOrderedCategories([...categories]);
+    setShowCategoryReorderModal(true);
+  };
+
+  const handleMoveCategoryUp = (index: number) => {
+    if (index > 0) {
+      const newOrder = [...orderedCategories];
+      [newOrder[index], newOrder[index - 1]] = [newOrder[index - 1], newOrder[index]];
+      setOrderedCategories(newOrder);
+    }
+  };
+
+  const handleMoveCategoryDown = (index: number) => {
+    if (index < orderedCategories.length - 1) {
+      const newOrder = [...orderedCategories];
+      [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+      setOrderedCategories(newOrder);
+    }
+  };
+
+  const handleSaveCategoryOrder = async () => {
+    try {
+      // Salvar ordem no localStorage para persistência
+      localStorage.setItem("category_order", JSON.stringify(orderedCategories));
+      setCategories(orderedCategories);
+      setShowCategoryReorderModal(false);
+      toast.success("Ordem das categorias atualizada com sucesso!");
+    } catch (error) {
+      toast.error("Erro ao salvar ordem das categorias: " + (error as Error).message);
+    }
   };
 
   const calculateEmployeePerformance = async () => {
@@ -694,7 +747,9 @@ export default function AdminDashboard() {
 
         imageUrl = publicUrl.publicUrl;
       } catch (error) {
-        toast.error("Erro ao fazer upload da imagem: " + (error as Error).message);
+        toast.error(
+          "Erro ao fazer upload da imagem: " + (error as Error).message,
+        );
         return;
       }
     }
@@ -735,7 +790,11 @@ export default function AdminDashboard() {
       newCategory: "",
     });
     fetchMenuItems();
-    toast.success(editingItem ? "Item atualizado com sucesso!" : "Item adicionado com sucesso!");
+    toast.success(
+      editingItem
+        ? "Item atualizado com sucesso!"
+        : "Item adicionado com sucesso!",
+    );
   };
 
   const handleSaveUser = async (e: React.FormEvent) => {
@@ -1476,24 +1535,32 @@ export default function AdminDashboard() {
                   <h2 className="text-2xl font-bold text-black">
                     Gerenciar Cardápio
                   </h2>
-                  <button
-                    onClick={() => {
-                      setEditingItem(null);
-                      setFormData({
-                        name: "",
-                        description: "",
-                        price: "",
-                        image_url: "",
-                        category: "",
-                        newCategory: "",
-                      });
-                      setShowMenuModal(true);
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Adicionar Item
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleOpenCategoryReorder}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                    >
+                      📊 Reordenar Categorias
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingItem(null);
+                        setFormData({
+                          name: "",
+                          description: "",
+                          price: "",
+                          image_url: "",
+                          category: "",
+                          newCategory: "",
+                        });
+                        setShowMenuModal(true);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Adicionar Item
+                    </button>
+                  </div>
                 </div>
 
                 {/* Menu Items */}
@@ -2507,6 +2574,75 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showCategoryReorderModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b flex items-center justify-between flex-shrink-0">
+              <h2 className="text-2xl font-bold text-black">
+                Reordenar Categorias
+              </h2>
+              <button
+                onClick={() => setShowCategoryReorderModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition flex-shrink-0"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-6 space-y-2">
+                <p className="text-sm text-gray-600 mb-4">
+                  Use os botões para reordenar as categorias conforme desejado
+                </p>
+                {orderedCategories.map((category, index) => (
+                  <div
+                    key={category}
+                    className="flex items-center justify-between p-4 bg-gray-100 rounded-lg"
+                  >
+                    <span className="font-medium text-gray-800">
+                      {index + 1}. {category.charAt(0).toUpperCase() + category.slice(1)}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleMoveCategoryUp(index)}
+                        disabled={index === 0}
+                        className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Mover para cima"
+                      >
+                        <ArrowUp className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleMoveCategoryDown(index)}
+                        disabled={index === orderedCategories.length - 1}
+                        className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Mover para baixo"
+                      >
+                        <ArrowDown className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-6 border-t flex-shrink-0 flex gap-2">
+              <button
+                onClick={() => setShowCategoryReorderModal(false)}
+                className="flex-1 bg-gray-300 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-400 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveCategoryOrder}
+                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+              >
+                Salvar Ordem
+              </button>
+            </div>
           </div>
         </div>
       )}
