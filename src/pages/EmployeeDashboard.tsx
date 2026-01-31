@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { LogOut, ChevronDown, Trash2, Lock, Unlock } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase, Order } from "../lib/supabase";
@@ -29,6 +30,7 @@ const getPaymentMethodLabel = (paymentMethod: string) => {
 };
 
 export default function EmployeeDashboard() {
+  const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -336,7 +338,10 @@ export default function EmployeeDashboard() {
               Painel de Pedidos
             </h1>
             <button
-              onClick={logout}
+              onClick={() => {
+                logout();
+                navigate("/");
+              }}
               className="p-2 hover:bg-gray-100 rounded-lg transition"
               title="Sair"
             >

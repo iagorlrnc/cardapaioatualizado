@@ -23,7 +23,7 @@ export default function Login({
   const [loading, setLoading] = useState(false);
   const [showQRReader, setShowQRReader] = useState(false);
   const [loggedInUsers, setLoggedInUsers] = useState<string[]>([]);
-  const { login } = useAuth();
+  const { login, loginBySlug } = useAuth();
 
   useEffect(() => {
     const fetchClientUsers = async () => {
@@ -84,24 +84,46 @@ export default function Login({
 
   const handleQRCodeDetected = async (qrData: string) => {
     try {
-      // Tenta interpretar como QR code de usuário (formato direto: username ou UUID)
-      // Primeiro, tenta procurar pelo qr_code fixo na tabela de usuários
+      const raw = qrData.trim();
+
+      // 1) QR code de URL com slug (/slug)
+      let slugFromUrl: string | null = null;
+      if (raw.startsWith("http://") || raw.startsWith("https://")) {
+        try {
+          const parsed = new URL(raw);
+          const path = parsed.pathname.replace(/^\//, "");
+          slugFromUrl = path || null;
+        } catch {
+          slugFromUrl = null;
+        }
+      }
+
+      // 2) Tenta login por slug (URL ou slug direto)
+      const slugCandidate = slugFromUrl || raw;
+      if (slugCandidate) {
+        const success = await loginBySlug(slugCandidate, true);
+        if (success) {
+          setShowQRReader(false);
+          return;
+        }
+      }
+
+      // 3) Fallback: QR code fixo salvo no banco (compatibilidade)
       const { data: userByQR } = await supabase
         .from("users")
         .select("username, is_admin, is_employee")
-        .eq("qr_code", qrData)
+        .eq("qr_code", raw)
         .eq("is_admin", false)
         .eq("is_employee", false)
         .single();
 
       if (userByQR) {
-        // QR code de usuário válido
         handleQRLogin(userByQR.username);
         return;
       }
 
-      // Se não encontrou, tenta como dados de carrinho
-      const data = JSON.parse(qrData);
+      // 4) Fallback: JSON legado
+      const data = JSON.parse(raw);
       if (data.table) {
         handleQRLogin(data.table);
       } else {

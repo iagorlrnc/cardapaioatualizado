@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ShoppingCart,
   LogOut,
@@ -32,6 +33,7 @@ const formatOrderNumericId = (id: string) => {
 };
 
 export default function CustomerOrder() {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -570,7 +572,10 @@ export default function CustomerOrder() {
                 )}
               </button>
               <button
-                onClick={logout}
+                onClick={() => {
+                  logout();
+                  navigate("/");
+                }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition"
                 title="Sair"
               >

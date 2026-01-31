@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   LogOut,
   Users,
@@ -68,6 +69,7 @@ const formatOrderNumericId = (id: string) => {
 };
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const { logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -895,7 +897,10 @@ export default function AdminDashboard() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold">Admin</h1>
           <button
-            onClick={logout}
+            onClick={() => {
+              logout();
+              navigate("/");
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
           >
             <LogOut className="w-4 h-4" />
