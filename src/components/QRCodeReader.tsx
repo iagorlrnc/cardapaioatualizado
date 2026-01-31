@@ -60,7 +60,13 @@ export function QRCodeReader({ onQRCodeDetected, onClose }: QRCodeReaderProps) {
 
   // Iniciar scanner após permissão concedida
   useEffect(() => {
-    if (!permissionGranted || !permissionChecked || scannerReady || isScanning.current) return;
+    if (
+      !permissionGranted ||
+      !permissionChecked ||
+      scannerReady ||
+      isScanning.current
+    )
+      return;
 
     const startScanner = async () => {
       try {
@@ -76,16 +82,19 @@ export function QRCodeReader({ onQRCodeDetected, onClose }: QRCodeReaderProps) {
 
         const onScanSuccess = (decodedText: string) => {
           console.log("QR Code detectado:", decodedText);
-          
+
           // Validar se é uma URL ou slug válido
           if (decodedText && decodedText.trim().length > 0) {
             // Parar scanner antes de processar
-            html5QrCode.stop().then(() => {
-              onQRCodeDetected(decodedText);
-            }).catch((err) => {
-              console.error("Erro ao parar scanner:", err);
-              onQRCodeDetected(decodedText);
-            });
+            html5QrCode
+              .stop()
+              .then(() => {
+                onQRCodeDetected(decodedText);
+              })
+              .catch((err) => {
+                console.error("Erro ao parar scanner:", err);
+                onQRCodeDetected(decodedText);
+              });
           } else {
             setError("QR Code inválido. Tente novamente.");
           }
@@ -100,7 +109,7 @@ export function QRCodeReader({ onQRCodeDetected, onClose }: QRCodeReaderProps) {
           { facingMode: "environment" },
           config,
           onScanSuccess,
-          onScanError
+          onScanError,
         );
 
         setScannerReady(true);
@@ -130,13 +139,16 @@ export function QRCodeReader({ onQRCodeDetected, onClose }: QRCodeReaderProps) {
 
   const handleClose = () => {
     if (scannerRef.current) {
-      scannerRef.current.stop().then(() => {
-        console.log("Câmera desabilitada");
-        onClose();
-      }).catch((err) => {
-        console.error("Erro ao desabilitar câmera:", err);
-        onClose();
-      });
+      scannerRef.current
+        .stop()
+        .then(() => {
+          console.log("Câmera desabilitada");
+          onClose();
+        })
+        .catch((err) => {
+          console.error("Erro ao desabilitar câmera:", err);
+          onClose();
+        });
     } else {
       onClose();
     }
@@ -172,10 +184,7 @@ export function QRCodeReader({ onQRCodeDetected, onClose }: QRCodeReaderProps) {
             {/* Quadrado com câmera dentro */}
             <div className="relative w-80 h-80 bg-black rounded-lg overflow-hidden shadow-2xl border-4 border-white">
               {/* Container da câmera */}
-              <div
-                id="qr-reader"
-                className="w-full h-full"
-              />
+              <div id="qr-reader" className="w-full h-full" />
 
               {/* Indicador de carregamento do scanner */}
               {!scannerReady && (
