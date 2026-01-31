@@ -77,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         phone: data.phone,
         is_admin: data.is_admin,
         is_employee: data.is_employee,
+        slug: data.slug,
       };
 
       // Registrar sessão ativa

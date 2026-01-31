@@ -4,17 +4,20 @@ import { useRef, useState } from "react";
 
 interface UserQRCodeDisplayProps {
   username: string;
-  qrCode: string;
+  userSlug: string;
   onClose: () => void;
 }
 
 export function UserQRCodeDisplay({
   username,
-  qrCode,
+  userSlug,
   onClose,
 }: UserQRCodeDisplayProps) {
   const qrRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+
+  // Gerar URL completa do usuário (domínio + slug)
+  const userUrl = `${window.location.origin}/${userSlug}`;
 
   const handleDownload = () => {
     const svg = qrRef.current?.querySelector("svg");
@@ -41,13 +44,14 @@ export function UserQRCodeDisplay({
   };
 
   const handleShare = async () => {
-    const text = `QR Code da Mesa ${username}: ${qrCode}`;
+    const text = `QR Code da Mesa ${username}: ${userUrl}`;
 
     if (navigator.share) {
       try {
         await navigator.share({
           title: `Mesa ${username}`,
           text: text,
+          url: userUrl,
         });
       } catch (error) {
         console.error("Erro ao compartilhar:", error);
@@ -58,7 +62,7 @@ export function UserQRCodeDisplay({
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(qrCode);
+    navigator.clipboard.writeText(userUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -85,15 +89,14 @@ export function UserQRCodeDisplay({
           </p>
           <div ref={qrRef} className="bg-white p-4 rounded">
             <QRCodeSVG
-              value={qrCode}
+              value={userUrl}
               size={256}
               level="H"
               includeMargin={true}
             />
           </div>
-          <p className="text-xs text-gray-500 mt-4 text-center">
-            Este QR code é único e fixo para esta mesa. <br />
-            Não muda ao trocar de dispositivo ou aba.
+          <p className="text-xs text-gray-500 mt-4 text-center break-all">
+            {userUrl}
           </p>
         </div>
 
@@ -119,7 +122,7 @@ export function UserQRCodeDisplay({
             className="w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-lg font-semibold hover:bg-gray-300 transition flex items-center justify-center gap-2"
           >
             <Copy className="w-4 h-4" />
-            {copied ? "Copiado!" : "Copiar Código"}
+            {copied ? "Copiado!" : "Copiar Link"}
           </button>
         </div>
 

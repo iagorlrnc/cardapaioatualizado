@@ -11,6 +11,7 @@ export interface User {
   phone: string;
   is_admin: boolean;
   is_employee?: boolean;
+  slug: string;
 }
 
 export interface MenuItem {

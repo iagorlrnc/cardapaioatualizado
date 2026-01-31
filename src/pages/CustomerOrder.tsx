@@ -55,7 +55,6 @@ export default function CustomerOrder() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [skipAutoSelectOrder, setSkipAutoSelectOrder] = useState(true);
   const [currentOrderItems, setCurrentOrderItems] = useState<any[]>([]);
-  const [userQRCode, setUserQRCode] = useState<string | null>(null);
   const [showUserQRCode, setShowUserQRCode] = useState(false);
   const toastTimeoutRef = useRef<number | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
@@ -232,24 +231,7 @@ export default function CustomerOrder() {
   useEffect(() => {
     fetchMenuItems();
     checkExistingOrder();
-
-    // Buscar QR code fixo do usuário
-    if (user?.id) {
-      const fetchUserQRCode = async () => {
-        const { data } = await supabase
-          .from("users")
-          .select("qr_code")
-          .eq("id", user.id)
-          .single();
-
-        if (data?.qr_code) {
-          setUserQRCode(data.qr_code);
-        }
-      };
-
-      fetchUserQRCode();
-    }
-  }, [checkExistingOrder, user?.id]);
+  }, [checkExistingOrder]);
 
   useEffect(() => {
     if (currentOrder) {
@@ -1299,10 +1281,10 @@ export default function CustomerOrder() {
           </div>
         )}
 
-        {showUserQRCode && userQRCode && user?.username && (
+        {showUserQRCode && user?.username && user?.slug && (
           <UserQRCodeDisplay
             username={user.username}
-            qrCode={userQRCode}
+            userSlug={user.slug}
             onClose={() => setShowUserQRCode(false)}
           />
         )}

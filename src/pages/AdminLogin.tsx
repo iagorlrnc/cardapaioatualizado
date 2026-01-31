@@ -5,9 +5,15 @@ import { toast } from "react-toastify";
 
 interface AdminLoginProps {
   onSwitchToLogin: () => void;
+  onSwitchToEmployee: () => void;
 }
 
-export default function AdminLogin({ onSwitchToLogin }: AdminLoginProps) {
+type UserType = "admin" | "employee" | "customer";
+
+export default function AdminLogin({
+  onSwitchToLogin,
+  onSwitchToEmployee,
+}: AdminLoginProps) {
   const [showRegister, setShowRegister] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -16,6 +22,7 @@ export default function AdminLogin({ onSwitchToLogin }: AdminLoginProps) {
   const { login } = useAuth();
 
   // Register state
+  const [userType, setUserType] = useState<UserType>("admin");
   const [regUsername, setRegUsername] = useState("");
   const [regPhone, setRegPhone] = useState("");
   const [regPassword, setRegPassword] = useState("");
@@ -38,29 +45,65 @@ export default function AdminLogin({ onSwitchToLogin }: AdminLoginProps) {
     }
   };
 
+  const handleUsernameInput = (value: string) => {
+    if (userType === "customer") {
+      // Apenas números
+      const numOnly = value.replace(/\D/g, "");
+
+      let formatted = "";
+      if (numOnly.length === 0) {
+        formatted = "";
+      } else if (numOnly.length === 1) {
+        // Se tem 1 dígito (1-9), adiciona 0 na frente
+        const digit = parseInt(numOnly);
+        if (digit >= 1 && digit <= 9) {
+          formatted = "0" + numOnly;
+        } else {
+          formatted = numOnly;
+        }
+      } else {
+        // Se tem 2+ dígitos, pega os últimos 2
+        formatted = numOnly.slice(-2);
+      }
+
+      setRegUsername(formatted);
+    } else {
+      setRegUsername(value);
+    }
+  };
+
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegError("");
 
-    // Validações
+    // Validações básicas
     if (!regUsername.trim()) {
       setRegError("Nome de usuário é obrigatório");
       return;
     }
 
-    if (!regPhone.trim()) {
-      setRegError("Telefone é obrigatório");
+    // Para cliente, validar que tem exatamente 2 dígitos
+    if (userType === "customer" && regUsername.length !== 2) {
+      setRegError("Número da mesa deve ter 2 dígitos");
       return;
     }
 
-    if (regPassword.length < 6) {
-      setRegError("A senha deve ter no mínimo 6 caracteres");
-      return;
-    }
+    // Para admin e funcionário, validar campos adicionais
+    if (userType !== "customer") {
+      if (!regPhone.trim()) {
+        setRegError("Telefone é obrigatório");
+        return;
+      }
 
-    if (regPassword !== regConfirmPassword) {
-      setRegError("As senhas não coincidem");
-      return;
+      if (regPassword.length < 6) {
+        setRegError("A senha deve ter no mínimo 6 caracteres");
+        return;
+      }
+
+      if (regPassword !== regConfirmPassword) {
+        setRegError("As senhas não coincidem");
+        return;
+      }
     }
 
     if (!adminAuthUsername.trim() || !adminAuthPassword.trim()) {
@@ -98,22 +141,41 @@ export default function AdminLogin({ onSwitchToLogin }: AdminLoginProps) {
         return;
       }
 
-      // Criar novo usuário admin
-      const { error: insertError } = await supabase.from("users").insert({
+      // Preparar dados do novo usuário
+      const newUserData: any = {
         username: regUsername,
-        phone: regPhone,
-        password_hash: regPassword,
-        is_admin: true,
-      });
+        password_hash: regPassword || "customer",
+        is_admin: userType === "admin",
+        is_employee: userType === "employee",
+      };
+
+      // Adicionar telefone se não for cliente
+      if (userType !== "customer") {
+        newUserData.phone = regPhone;
+      } else {
+        newUserData.phone = "0000000000"; // Telefone padrão para clientes
+      }
+
+      // Criar novo usuário
+      const { error: insertError } = await supabase
+        .from("users")
+        .insert(newUserData);
 
       if (insertError) {
-        setRegError("Erro ao criar usuário administrador");
+        setRegError(`Erro ao criar usuário: ${insertError.message}`);
         setRegLoading(false);
         return;
       }
 
+      const userTypeLabel =
+        userType === "admin"
+          ? "Administrador"
+          : userType === "employee"
+            ? "Funcionário"
+            : "Cliente";
+
       toast.success(
-        "Administrador criado com sucesso! Faça login para continuar.",
+        `${userTypeLabel} criado com sucesso! Faça login para continuar.`,
       );
 
       // Limpar formulário e voltar para login
@@ -123,10 +185,11 @@ export default function AdminLogin({ onSwitchToLogin }: AdminLoginProps) {
       setRegConfirmPassword("");
       setAdminAuthUsername("");
       setAdminAuthPassword("");
+      setUserType("admin");
       setShowRegister(false);
     } catch (error) {
-      console.error("Erro ao registrar admin:", error);
-      setRegError("Erro ao criar administrador");
+      console.error("Erro ao registrar usuário:", error);
+      setRegError("Erro ao criar usuário");
     } finally {
       setRegLoading(false);
     }
@@ -136,10 +199,7 @@ export default function AdminLogin({ onSwitchToLogin }: AdminLoginProps) {
     <div className="min-h-screen bg-black flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         <div className="mb-6 flex flex-col items-center">
-          <img
-            src="/assets/.png"
-            className="w-16 h-16 object-contain mb-2"
-          />
+          <img src="/assets/.png" className="w-16 h-16 object-contain mb-2" />
           <h1 className="text-4xl font-bold text-white mb-2 text-center">
             Nome
           </h1>
@@ -151,12 +211,6 @@ export default function AdminLogin({ onSwitchToLogin }: AdminLoginProps) {
               <h2 className="text-2xl font-bold text-center mb-6 text-black">
                 Login Administrador
               </h2>
-
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
-                  {error}
-                </div>
-              )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -185,6 +239,12 @@ export default function AdminLogin({ onSwitchToLogin }: AdminLoginProps) {
                   />
                 </div>
 
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
+                    {error}
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   disabled={loading}
@@ -199,10 +259,18 @@ export default function AdminLogin({ onSwitchToLogin }: AdminLoginProps) {
                   onClick={() => setShowRegister(true)}
                   className="w-full text-sm text-white bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded-lg transition font-semibold"
                 >
-                  Cadastro de Administrador
+                  Cadastro
                 </button>
 
-                <div className="text-center">
+                <div className="text-center space-y-3">
+                  <button
+                    onClick={onSwitchToEmployee}
+                    className="block w-full text-sm text-gray-600 hover:text-black transition"
+                  >
+                    Acesso Funcionário{" "}
+                    <span className="font-semibold">Login Funcionário</span>
+                  </button>
+
                   <button
                     onClick={onSwitchToLogin}
                     className="text-sm text-gray-600 hover:text-black transition"
@@ -215,75 +283,114 @@ export default function AdminLogin({ onSwitchToLogin }: AdminLoginProps) {
           ) : (
             <>
               <h2 className="text-2xl font-bold text-center mb-6 text-black">
-                Cadastro de Administrador
+                Cadastro
               </h2>
-
-              {regError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
-                  {regError}
-                </div>
-              )}
 
               <form onSubmit={handleRegisterSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nome de Usuário
+                    Tipo de Usuário
                   </label>
-                  <input
-                    type="text"
-                    value={regUsername}
-                    onChange={(e) => setRegUsername(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
-                    required
-                  />
+                  <select
+                    value={userType}
+                    onChange={(e) => {
+                      setUserType(e.target.value as UserType);
+                      setRegUsername("");
+                      setRegPhone("");
+                      setRegPassword("");
+                      setRegConfirmPassword("");
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition bg-white"
+                  >
+                    <option value="admin">Administrador</option>
+                    <option value="employee">Funcionário</option>
+                    <option value="customer">Cliente (Mesa)</option>
+                  </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Telefone
-                  </label>
-                  <input
-                    type="tel"
-                    value={regPhone}
-                    onChange={(e) => setRegPhone(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
-                    required
-                  />
-                </div>
+                {userType === "customer" ? (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Número da Mesa
+                      </label>
+                      <input
+                        type="text"
+                        value={regUsername}
+                        onChange={(e) => handleUsernameInput(e.target.value)}
+                        placeholder="Ex: 01"
+                        maxLength={3}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition text-center text-lg font-semibold"
+                        required
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Digite números (1-99). O 0 será adicionado
+                        automaticamente antes do primeiro dígito.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nome de Usuário
+                      </label>
+                      <input
+                        type="text"
+                        value={regUsername}
+                        onChange={(e) => setRegUsername(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
+                        required
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Senha
-                  </label>
-                  <input
-                    type="password"
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
-                    required
-                  />
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Telefone
+                      </label>
+                      <input
+                        type="tel"
+                        value={regPhone}
+                        onChange={(e) => setRegPhone(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
+                        required
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirmar Senha
-                  </label>
-                  <input
-                    type="password"
-                    value={regConfirmPassword}
-                    onChange={(e) => setRegConfirmPassword(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
-                    required
-                  />
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Senha
+                      </label>
+                      <input
+                        type="password"
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Confirmar Senha
+                      </label>
+                      <input
+                        type="password"
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="border-t pt-4">
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">
                     Autenticação de Administrador
                   </h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    Apenas administradores existentes podem criar novas contas
-                    de admin.
+                    Apenas administradores existentes podem criar novas contas.
                   </p>
 
                   <div className="mb-3">
@@ -312,6 +419,12 @@ export default function AdminLogin({ onSwitchToLogin }: AdminLoginProps) {
                     />
                   </div>
                 </div>
+
+                {regError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
+                    {regError}
+                  </div>
+                )}
 
                 <button
                   type="submit"

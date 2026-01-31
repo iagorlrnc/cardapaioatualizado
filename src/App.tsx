@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Login from "./pages/Login";
 import AdminLogin from "./pages/AdminLogin";
@@ -13,6 +14,18 @@ function AppContent() {
   const { user, loading } = useAuth();
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [showEmployeeLogin, setShowEmployeeLogin] = useState(false);
+  const navigate = useNavigate();
+  const { userSlug } = useParams();
+
+  useEffect(() => {
+    if (user && !userSlug) {
+      // Se usuário está logado mas a URL não tem slug, redirecionar
+      navigate(`/${user.slug}`, { replace: true });
+    } else if (!user && userSlug) {
+      // Se usuário não está logado mas há slug na URL, ir para login
+      navigate("/", { replace: true });
+    }
+  }, [user, userSlug, navigate]);
 
   if (loading) {
     return (
@@ -25,12 +38,26 @@ function AppContent() {
   if (!user) {
     if (showEmployeeLogin) {
       return (
-        <EmployeeLogin onSwitchToLogin={() => setShowEmployeeLogin(false)} />
+        <EmployeeLogin
+          onSwitchToLogin={() => setShowEmployeeLogin(false)}
+          onSwitchToAdmin={() => {
+            setShowEmployeeLogin(false);
+            setShowAdminLogin(true);
+          }}
+        />
       );
     }
 
     if (showAdminLogin) {
-      return <AdminLogin onSwitchToLogin={() => setShowAdminLogin(false)} />;
+      return (
+        <AdminLogin
+          onSwitchToLogin={() => setShowAdminLogin(false)}
+          onSwitchToEmployee={() => {
+            setShowAdminLogin(false);
+            setShowEmployeeLogin(true);
+          }}
+        />
+      );
     }
 
     return (

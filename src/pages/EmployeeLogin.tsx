@@ -3,9 +3,13 @@ import { useAuth } from "../contexts/AuthContext";
 
 interface EmployeeLoginProps {
   onSwitchToLogin: () => void;
+  onSwitchToAdmin: () => void;
 }
 
-export default function EmployeeLogin({ onSwitchToLogin }: EmployeeLoginProps) {
+export default function EmployeeLogin({
+  onSwitchToLogin,
+  onSwitchToAdmin,
+}: EmployeeLoginProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -30,9 +34,9 @@ export default function EmployeeLogin({ onSwitchToLogin }: EmployeeLoginProps) {
       <div className="w-full max-w-md">
         <div className="mb-6 flex flex-col items-center">
           <img
-              src="/assets/.jpg"
-              className="w-24 h-24 object-cover rounded-full mb-2"
-            />
+            src="/assets/.jpg"
+            className="w-24 h-24 object-cover rounded-full mb-2"
+          />
           <h1 className="text-4xl font-bold text-white mb-2 text-center">
             Nome
           </h1>
@@ -42,12 +46,6 @@ export default function EmployeeLogin({ onSwitchToLogin }: EmployeeLoginProps) {
           <h2 className="text-2xl font-bold text-center mb-6 text-black">
             Login Funcionário
           </h2>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
-              {error}
-            </div>
-          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -76,6 +74,12 @@ export default function EmployeeLogin({ onSwitchToLogin }: EmployeeLoginProps) {
               />
             </div>
 
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
+                {error}
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading}
@@ -86,6 +90,14 @@ export default function EmployeeLogin({ onSwitchToLogin }: EmployeeLoginProps) {
           </form>
 
           <div className="mt-6 text-center">
+            <button
+              onClick={onSwitchToAdmin}
+              className="block w-full text-sm text-gray-600 hover:text-black transition mb-3"
+            >
+              Acesso Administrador{" "}
+              <span className="font-semibold">Login Admin</span>
+            </button>
+
             <button
               onClick={onSwitchToLogin}
               className="text-sm text-gray-600 hover:text-black transition"
