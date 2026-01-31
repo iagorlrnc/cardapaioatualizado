@@ -101,7 +101,8 @@ export default function AdminDashboard() {
     is_employee: false,
   });
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
-  const [showCategoryReorderModal, setShowCategoryReorderModal] = useState(false);
+  const [showCategoryReorderModal, setShowCategoryReorderModal] =
+    useState(false);
   const [orderedCategories, setOrderedCategories] = useState<string[]>([]);
   const [employeePerformance, setEmployeePerformance] = useState<
     Array<{
@@ -158,21 +159,42 @@ export default function AdminDashboard() {
     if (data) {
       setMenuItems(data);
       const allCategories = [...new Set(data.map((item) => item.category))];
-      
-      // Carregar ordem salva no localStorage
-      const savedOrder = localStorage.getItem("category_order");
-      if (savedOrder) {
-        try {
-          const parsedOrder = JSON.parse(savedOrder);
-          // Manter a ordem salva, adicionar novas categorias no final
-          const orderedCats = parsedOrder.filter((cat: string) => allCategories.includes(cat));
-          const newCats = allCategories.filter((cat) => !orderedCats.includes(cat));
-          setCategories([...orderedCats, ...newCats]);
-        } catch {
-          setCategories(allCategories);
+
+      // Carregar ordem salva do banco de dados
+      const { data: categoryOrderData } = await supabase
+        .from("category_order")
+        .select("category, position")
+        .order("position", { ascending: true });
+
+      if (categoryOrderData && categoryOrderData.length > 0) {
+        // Usar ordem do banco de dados
+        const orderedCats = categoryOrderData
+          .map((item) => item.category)
+          .filter((cat) => allCategories.includes(cat));
+        
+        // Adicionar novas categorias que não estão no banco
+        const newCats = allCategories.filter((cat) => !orderedCats.includes(cat));
+        setCategories([...orderedCats, ...newCats]);
+        
+        // Se há categorias novas, salvar no banco
+        if (newCats.length > 0) {
+          const maxPosition = categoryOrderData.length;
+          const newCategoryOrders = newCats.map((cat, index) => ({
+            category: cat,
+            position: maxPosition + index,
+          }));
+          await supabase.from("category_order").insert(newCategoryOrders);
         }
       } else {
+        // Primeira vez - criar ordem inicial no banco
         setCategories(allCategories);
+        const initialOrder = allCategories.map((cat, index) => ({
+          category: cat,
+          position: index,
+        }));
+        if (initialOrder.length > 0) {
+          await supabase.from("category_order").insert(initialOrder);
+        }
       }
     }
   };
@@ -242,7 +264,10 @@ export default function AdminDashboard() {
   const handleMoveCategoryUp = (index: number) => {
     if (index > 0) {
       const newOrder = [...orderedCategories];
-      [newOrder[index], newOrder[index - 1]] = [newOrder[index - 1], newOrder[index]];
+      [newOrder[index], newOrder[index - 1]] = [
+        newOrder[index - 1],
+        newOrder[index],
+      ];
       setOrderedCategories(newOrder);
     }
   };
@@ -250,20 +275,38 @@ export default function AdminDashboard() {
   const handleMoveCategoryDown = (index: number) => {
     if (index < orderedCategories.length - 1) {
       const newOrder = [...orderedCategories];
-      [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+      [newOrder[index], newOrder[index + 1]] = [
+        newOrder[index + 1],
+        newOrder[index],
+      ];
       setOrderedCategories(newOrder);
     }
   };
 
   const handleSaveCategoryOrder = async () => {
     try {
-      // Salvar ordem no localStorage para persistência
-      localStorage.setItem("category_order", JSON.stringify(orderedCategories));
+      // Deletar ordem antiga
+      await supabase.from("category_order").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+      // Inserir nova ordem
+      const categoryOrderData = orderedCategories.map((cat, index) => ({
+        category: cat,
+        position: index,
+      }));
+
+      const { error } = await supabase.from("category_order").insert(categoryOrderData);
+
+      if (error) {
+        throw error;
+      }
+
       setCategories(orderedCategories);
       setShowCategoryReorderModal(false);
       toast.success("Ordem das categorias atualizada com sucesso!");
     } catch (error) {
-      toast.error("Erro ao salvar ordem das categorias: " + (error as Error).message);
+      toast.error(
+        "Erro ao salvar ordem das categorias: " + (error as Error).message,
+      );
     }
   };
 
@@ -2604,7 +2647,8 @@ export default function AdminDashboard() {
                     className="flex items-center justify-between p-4 bg-gray-100 rounded-lg"
                   >
                     <span className="font-medium text-gray-800">
-                      {index + 1}. {category.charAt(0).toUpperCase() + category.slice(1)}
+                      {index + 1}.{" "}
+                      {category.charAt(0).toUpperCase() + category.slice(1)}
                     </span>
                     <div className="flex gap-2">
                       <button

@@ -70,7 +70,27 @@ export default function CustomerOrder() {
 
     if (data) {
       setMenuItems(data);
-      setCategories(["todos", ...new Set(data.map((item) => item.category))]);
+      const allCategories = [...new Set(data.map((item) => item.category))];
+
+      // Carregar ordem das categorias do banco de dados
+      const { data: categoryOrderData } = await supabase
+        .from("category_order")
+        .select("category, position")
+        .order("position", { ascending: true });
+
+      if (categoryOrderData && categoryOrderData.length > 0) {
+        // Usar ordem do banco de dados
+        const orderedCats = categoryOrderData
+          .map((item) => item.category)
+          .filter((cat) => allCategories.includes(cat));
+        
+        // Adicionar categorias novas que não estão no banco
+        const newCats = allCategories.filter((cat) => !orderedCats.includes(cat));
+        setCategories(["todos", ...orderedCats, ...newCats]);
+      } else {
+        // Sem ordem salva, usar ordem padrão
+        setCategories(["todos", ...allCategories]);
+      }
     }
   };
 
