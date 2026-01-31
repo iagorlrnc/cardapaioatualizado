@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { QRCodeReader } from "../components/QRCodeReader";
 import { supabase } from "../lib/supabase";
 
 interface LoginProps {
@@ -21,9 +20,8 @@ export default function Login({
   const [clientUsers, setClientUsers] = useState<ClientUser[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showQRReader, setShowQRReader] = useState(false);
   const [loggedInUsers, setLoggedInUsers] = useState<string[]>([]);
-  const { login, loginBySlug } = useAuth();
+  const { login } = useAuth();
 
   useEffect(() => {
     const fetchClientUsers = async () => {
@@ -82,72 +80,6 @@ export default function Login({
     }
   };
 
-  const handleQRCodeDetected = async (qrData: string) => {
-    try {
-      const raw = qrData.trim();
-
-      // 1) QR code de URL com slug (/slug)
-      let slugFromUrl: string | null = null;
-      if (raw.startsWith("http://") || raw.startsWith("https://")) {
-        try {
-          const parsed = new URL(raw);
-          const path = parsed.pathname.replace(/^\//, "");
-          slugFromUrl = path || null;
-        } catch {
-          slugFromUrl = null;
-        }
-      }
-
-      // 2) Tenta login por slug (URL ou slug direto)
-      const slugCandidate = slugFromUrl || raw;
-      if (slugCandidate) {
-        const success = await loginBySlug(slugCandidate, true);
-        if (success) {
-          setShowQRReader(false);
-          return;
-        }
-      }
-
-      // 3) Fallback: QR code fixo salvo no banco (compatibilidade)
-      const { data: userByQR } = await supabase
-        .from("users")
-        .select("username, is_admin, is_employee")
-        .eq("qr_code", raw)
-        .eq("is_admin", false)
-        .eq("is_employee", false)
-        .single();
-
-      if (userByQR) {
-        handleQRLogin(userByQR.username);
-        return;
-      }
-
-      // 4) Fallback: JSON legado
-      const data = JSON.parse(raw);
-      if (data.table) {
-        handleQRLogin(data.table);
-      } else {
-        setError("QR code inválido. Tente novamente.");
-        setShowQRReader(false);
-      }
-    } catch {
-      setError("Erro ao processar QR code");
-      setShowQRReader(false);
-    }
-  };
-
-  const handleQRLogin = async (table: string) => {
-    setError("");
-    setLoading(true);
-    const success = await login(table, undefined, false, true); // isQRLogin = true
-
-    if (!success) {
-      setError("Erro ao acessar com QR code");
-      setLoading(false);
-    }
-    setShowQRReader(false);
-  };
-
   return (
     <div className="min-h-screen bg-[url('/assets/.jpg')] bg-cover bg-center flex items-center justify-center px-4">
       <div className="w-full max-w-md">
@@ -203,14 +135,6 @@ export default function Login({
             >
               {loading ? "Entrando..." : "Entrar"}
             </button>
-
-            <button
-              type="button"
-              onClick={() => setShowQRReader(true)}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
-            >
-              Ler QR Code
-            </button>
           </form>
 
           <div className="mt-6 text-center">
@@ -232,13 +156,6 @@ export default function Login({
           </div>
         </div>
       </div>
-
-      {showQRReader && (
-        <QRCodeReader
-          onQRCodeDetected={handleQRCodeDetected}
-          onClose={() => setShowQRReader(false)}
-        />
-      )}
     </div>
   );
 }
