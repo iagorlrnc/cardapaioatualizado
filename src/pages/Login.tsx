@@ -110,20 +110,22 @@ export default function Login({
     }
   };
 
+//bg-[url('/assets/.jpg')]
+
   return (
-    <div className="min-h-screen bg-[url('/assets/.jpg')] bg-cover bg-center flex items-center justify-center px-4">
+    <div className="min-h-screen bg-black bg-cover bg-center flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-lg shadow-2xl p-8">
           <div className="mb-6 flex flex-col items-center">
             <img
-              src="/assets/.jpg"
+              src="/assets/image.png"
               className="w-24 h-24 object-cover rounded-full mb-2"
             />
-            <h1 className="text-4xl font-bold text-[#aa341c] mb-2 text-center">
+            <h1 className="text-4xl font-bold text-black mb-2 text-center">
               Nome
             </h1>
           </div>
-          <h2 className="text-2xl font-bold text-center mb-6 text-[#aa341c]">
+          <h2 className="text-2xl font-bold text-center mb-6 text-black">
             Cardápio
           </h2>
 
@@ -144,7 +146,7 @@ export default function Login({
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#aa341c] focus:border-transparent outline-none transition bg-white"
                 required
               >
-                <option value="">-- Escolha uma mesa --</option>
+                <option value="">Selecionar</option>
                 {clientUsers.map((user) => (
                   <option
                     key={user.id}
@@ -152,7 +154,7 @@ export default function Login({
                     disabled={loggedInUsers.includes(user.username)}
                   >
                     Mesa {user.username}
-                    {loggedInUsers.includes(user.username) ? " (Em uso)" : ""}
+                    {loggedInUsers.includes(user.username) ? " (Ocupada)" : ""}
                   </option>
                 ))}
               </select>
@@ -169,7 +171,7 @@ export default function Login({
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#aa341c] text-white py-3 rounded-lg font-semibold hover:bg-[#8f2e18] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Entrando..." : "Entrar"}
             </button>

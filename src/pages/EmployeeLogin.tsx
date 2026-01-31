@@ -34,7 +34,7 @@ export default function EmployeeLogin({
       <div className="w-full max-w-md">
         <div className="mb-6 flex flex-col items-center">
           <img
-            src="/assets/.jpg"
+            src="/assets/imagewhite.png"
             className="w-24 h-24 object-cover rounded-full mb-2"
           />
           <h1 className="text-4xl font-bold text-white mb-2 text-center">
