@@ -88,6 +88,8 @@ export default function AdminDashboard() {
     category: "hamburguer",
     newCategory: "",
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
   const [showUserModal, setShowUserModal] = useState(false);
   const [userFormData, setUserFormData] = useState({
     username: "",
@@ -670,11 +672,38 @@ export default function AdminDashboard() {
   const handleSaveMenuItem = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    let imageUrl = formData.image_url;
+
+    // Se há arquivo de imagem para upload
+    if (imageFile) {
+      try {
+        const fileName = `${Date.now()}-${imageFile.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from("menu-items")
+          .upload(fileName, imageFile);
+
+        if (uploadError) {
+          toast.error("Erro ao fazer upload da imagem: " + uploadError.message);
+          return;
+        }
+
+        // Obter URL pública da imagem
+        const { data: publicUrl } = supabase.storage
+          .from("menu-items")
+          .getPublicUrl(fileName);
+
+        imageUrl = publicUrl.publicUrl;
+      } catch (error) {
+        toast.error("Erro ao fazer upload da imagem: " + (error as Error).message);
+        return;
+      }
+    }
+
     const itemData = {
       name: formData.name,
       description: formData.description,
       price: parseFloat(formData.price),
-      image_url: formData.image_url,
+      image_url: imageUrl,
       category: formData.newCategory || formData.category,
       active: true,
     };
@@ -695,6 +724,8 @@ export default function AdminDashboard() {
 
     setShowMenuModal(false);
     setEditingItem(null);
+    setImageFile(null);
+    setImagePreview("");
     setFormData({
       name: "",
       description: "",
@@ -704,6 +735,7 @@ export default function AdminDashboard() {
       newCategory: "",
     });
     fetchMenuItems();
+    toast.success(editingItem ? "Item atualizado com sucesso!" : "Item adicionado com sucesso!");
   };
 
   const handleSaveUser = async (e: React.FormEvent) => {
@@ -2229,29 +2261,41 @@ export default function AdminDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    URL da Imagem
+                    Imagem do Item
                   </label>
                   <input
-                    type="url"
-                    value={formData.image_url}
-                    onChange={(e) =>
-                      setFormData({ ...formData, image_url: e.target.value })
-                    }
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setImageFile(file);
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          setImagePreview(event.target?.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                    required
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Clique para selecionar uma imagem do seu dispositivo
+                  </p>
                 </div>
 
-                {formData.image_url && (
+                {(imagePreview || formData.image_url) && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Preview
                     </label>
-                    <img
-                      src={formData.image_url}
-                      alt="Preview"
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
+                    <div className="w-32 h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+                      <img
+                        src={imagePreview || formData.image_url}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                   </div>
                 )}
               </div>
