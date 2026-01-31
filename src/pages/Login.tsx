@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
+import { QRCodeReader } from "../components/QRCodeReader";
 
 interface LoginProps {
   onSwitchToRegister: () => void;
@@ -21,7 +22,8 @@ export default function Login({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [loggedInUsers, setLoggedInUsers] = useState<string[]>([]);
-  const { login } = useAuth();
+  const [showQRReader, setShowQRReader] = useState(false);
+  const { login, loginBySlug } = useAuth();
 
   useEffect(() => {
     const fetchClientUsers = async () => {
@@ -80,6 +82,34 @@ export default function Login({
     }
   };
 
+  const handleQRCodeDetected = async (data: string) => {
+    try {
+      // Extrair a slug da URL do QR code
+      // Format esperado: https://domain.com/mesa-123-uuid ou /mesa-123-uuid
+      const urlParts = data.split("/");
+      const slug = urlParts[urlParts.length - 1];
+
+      if (slug) {
+        setShowQRReader(false);
+        setError("");
+        setLoading(true);
+
+        // Fazer login automático via slug
+        const success = await loginBySlug(slug, true);
+
+        if (!success) {
+          setError("QR Code inválido ou mesa não encontrada");
+          setLoading(false);
+        }
+      } else {
+        setError("QR Code inválido");
+      }
+    } catch (err) {
+      console.error("Erro ao processar QR code:", err);
+      setError("Erro ao processar QR code");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[url('/assets/.jpg')] bg-cover bg-center flex items-center justify-center px-4">
       <div className="w-full max-w-md">
@@ -129,6 +159,14 @@ export default function Login({
             </div>
 
             <button
+              type="button"
+              onClick={() => setShowQRReader(true)}
+              className="w-full bg-gray-600 text-white py-2 rounded-lg font-semibold hover:bg-gray-700 transition"
+            >
+              📱 Ler QR Code
+            </button>
+
+            <button
               type="submit"
               disabled={loading}
               className="w-full bg-[#aa341c] text-white py-3 rounded-lg font-semibold hover:bg-[#8f2e18] transition disabled:opacity-50 disabled:cursor-not-allowed"
@@ -156,6 +194,13 @@ export default function Login({
           </div>
         </div>
       </div>
+
+      {showQRReader && (
+        <QRCodeReader
+          onQRCodeDetected={handleQRCodeDetected}
+          onClose={() => setShowQRReader(false)}
+        />
+      )}
     </div>
   );
 }

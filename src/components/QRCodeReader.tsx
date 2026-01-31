@@ -26,8 +26,7 @@ export function QRCodeReader({ onQRCodeDetected, onClose }: QRCodeReaderProps) {
 
     const onScanSuccess = (decodedText: string) => {
       try {
-        // Tenta fazer parse do JSON
-        JSON.parse(decodedText);
+        // Para URL/slug do QR code, não precisa fazer parse JSON
         onQRCodeDetected(decodedText);
         // Parar scanner após sucesso
         scanner.clear();
@@ -85,7 +84,7 @@ export function QRCodeReader({ onQRCodeDetected, onClose }: QRCodeReaderProps) {
         )}
 
         <p className="text-gray-600 text-sm text-center mb-4">
-          Aponte a câmera para o QR code para adicionar itens ao pedido
+          Aponte a câmera para o QR code para fazer login
         </p>
 
         <button
