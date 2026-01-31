@@ -18,16 +18,18 @@ function AppContent() {
   const { userSlug } = useParams();
 
   useEffect(() => {
-    if (user && !userSlug) {
-      // Se usuário está logado mas a URL não tem slug, redirecionar
-      navigate(`/${user.slug}`, { replace: true });
-    } else if (!user && userSlug) {
-      // Se usuário não está logado mas há slug na URL, limpar a URL
-      navigate("/", { replace: true });
+    if (!loading) {
+      if (user && !userSlug) {
+        // Se usuário está logado mas a URL não tem slug, redirecionar
+        navigate(`/${user.slug}`, { replace: true });
+      } else if (!user && userSlug) {
+        // Se usuário não está logado mas há slug na URL, redirecionar automaticamente
+        navigate("/", { replace: true });
+      }
     }
-  }, [user, userSlug, navigate]);
+  }, [user, userSlug, navigate, loading]);
 
-  if (loading) {
+  if (loading || (!user && userSlug)) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-white text-xl">Carregando...</div>

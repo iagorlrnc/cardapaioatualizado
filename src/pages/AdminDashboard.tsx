@@ -1925,9 +1925,7 @@ export default function AdminDashboard() {
                                             )}
                                             <button
                                               onClick={() =>
-                                                handleDeleteUser(
-                                                  user.id,
-                                                )
+                                                handleDeleteUser(user.id)
                                               }
                                               className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition text-sm flex items-center gap-1"
                                             >
