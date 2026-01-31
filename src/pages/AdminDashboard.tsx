@@ -15,7 +15,13 @@ import { supabase, MenuItem, Order, OrderItem, User } from "../lib/supabase";
 import { toast } from "react-toastify";
 import jsPDF from "jspdf";
 
-type TabType = "dashboard" | "menu" | "orders" | "users" | "performance";
+type TabType =
+  | "dashboard"
+  | "menu"
+  | "deactivated"
+  | "orders"
+  | "users"
+  | "performance";
 
 const generateSlug = (value: string) => {
   const base = value
@@ -754,6 +760,7 @@ export default function AdminDashboard() {
       price: item.price.toString(),
       image_url: item.image_url,
       category: item.category,
+      newCategory: "",
     });
     setShowMenuModal(true);
   };
@@ -802,47 +809,6 @@ export default function AdminDashboard() {
       .update({ active: !currentActive })
       .eq("id", id);
     fetchMenuItems();
-  };
-
-  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
-    try {
-      const { error } = await supabase
-        .from("orders")
-        .update({ status })
-        .eq("id", orderId);
-
-      if (error) {
-        toast.error("Erro ao atualizar pedido: " + error.message);
-        return;
-      }
-
-      // Mensagens de feedback baseadas no status
-      const statusMessages: Record<string, string> = {
-        pending: "Pedido retornado para pendente",
-        preparing: "Pedido marcado como preparando",
-        ready: "Pedido marcado como pronto!",
-        completed: "Pedido finalizado!",
-        cancelled: "Pedido cancelado",
-      };
-
-      const message = statusMessages[status] || "Pedido atualizado!";
-      toast.success(message);
-
-      // Atualizar dados locais
-      fetchOrders();
-
-      // Se cancelou o pedido, recalcular performance
-      if (status === "cancelled") {
-        calculateEmployeePerformance();
-      }
-      // Se estiver na aba de performance, recalcular
-      if (activeTab === "performance") {
-        calculateEmployeePerformance();
-      }
-    } catch (error) {
-      console.error("Erro ao atualizar status:", error);
-      toast.error("Erro ao atualizar pedido. Tente novamente.");
-    }
   };
 
   const handleDeleteOrder = async (orderId: string) => {
@@ -901,7 +867,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteUser = async (userId: string, username: string) => {
+  const handleDeleteUser = async (userId: string) => {
     try {
       await supabase.from("users").delete().eq("id", userId);
       fetchUsers();
@@ -1482,6 +1448,7 @@ export default function AdminDashboard() {
                         price: "",
                         image_url: "",
                         category: "",
+                        newCategory: "",
                       });
                       setShowMenuModal(true);
                     }}
@@ -1898,7 +1865,7 @@ export default function AdminDashboard() {
                                                   onClick={() =>
                                                     handleToggleEmployee(
                                                       user.id,
-                                                      user.is_employee,
+                                                      !!user.is_employee,
                                                     )
                                                   }
                                                   className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm"
@@ -1939,7 +1906,7 @@ export default function AdminDashboard() {
                                                   onClick={() =>
                                                     handleToggleEmployee(
                                                       user.id,
-                                                      user.is_employee,
+                                                      !!user.is_employee,
                                                     )
                                                   }
                                                   className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm flex-1 min-w-24 justify-center"
@@ -1955,7 +1922,6 @@ export default function AdminDashboard() {
                                               onClick={() =>
                                                 handleDeleteUser(
                                                   user.id,
-                                                  user.username,
                                                 )
                                               }
                                               className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition text-sm flex items-center gap-1"
