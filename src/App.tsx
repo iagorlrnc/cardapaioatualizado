@@ -23,10 +23,20 @@ function AppContent() {
         // Se usuário está logado mas a URL não tem slug, redirecionar
         navigate(`/${user.slug}`, { replace: true });
       } else if (!user && userSlug) {
-        // Se usuário não está logado mas há slug na URL, fazer login automático
-        (async () => {
-          await loginBySlug(userSlug, true);
-        })();
+        // Se usuário não está logado mas há slug na URL, verificar localStorage
+        // Se há dados no localStorage, é um reload/refresh - fazer login automático
+        // Se não há, é um logout ou acesso novo - redirecionar para home
+        const storedUser = localStorage.getItem("allblack_user");
+        if (storedUser) {
+          // É um reload/refresh, faz login automático
+          (async () => {
+            await loginBySlug(userSlug, true);
+          })();
+        } else {
+          // É um logout ou acesso novo sem autenticação anterior
+          // Redirecionar para home para evitar race condition
+          navigate("/", { replace: true });
+        }
       }
     }
   }, [user, userSlug, navigate, loading, loginBySlug]);
