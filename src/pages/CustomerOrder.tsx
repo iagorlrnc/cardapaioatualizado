@@ -17,6 +17,7 @@ import {
   Filter,
   ChevronDown,
   Share2,
+  Bell,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase, MenuItem, CartItem, Order } from "../lib/supabase";
@@ -58,6 +59,8 @@ export default function CustomerOrder() {
   const [skipAutoSelectOrder, setSkipAutoSelectOrder] = useState(true);
   const [currentOrderItems, setCurrentOrderItems] = useState<any[]>([]);
   const [showUserQRCode, setShowUserQRCode] = useState(false);
+  const [callingWaiter, setCallingWaiter] = useState(false);
+  const [lastWaiterCall, setLastWaiterCall] = useState<number | null>(null);
   const toastTimeoutRef = useRef<number | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
 
@@ -434,6 +437,70 @@ export default function CustomerOrder() {
     }
   };
 
+  const handleCallWaiter = async () => {
+    // Evitar chamadas repetidas em menos de 30 segundos
+    if (lastWaiterCall && Date.now() - lastWaiterCall < 30000) {
+      setToastMessage("Aguarde um pouco antes de chamar novamente.");
+      setShowToast(true);
+      toastTimeoutRef.current = window.setTimeout(() => {
+        setShowToast(false);
+        toastTimeoutRef.current = null;
+      }, 2500);
+      return;
+    }
+
+    if (!user?.id) {
+      setToastMessage("Erro: usuário não identificado.");
+      setShowToast(true);
+      toastTimeoutRef.current = window.setTimeout(() => {
+        setShowToast(false);
+        toastTimeoutRef.current = null;
+      }, 2500);
+      return;
+    }
+
+    setCallingWaiter(true);
+
+    try {
+      // Primeiro, deletar chamadas pendentes antigas desta mesa
+      await supabase
+        .from("waiter_calls")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("status", "pending");
+
+      // Inserir nova chamada
+      const { error } = await supabase.from("waiter_calls").insert({
+        user_id: user.id,
+        table_name: user.username,
+        status: "pending",
+        created_at: new Date().toISOString(),
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setLastWaiterCall(Date.now());
+      setToastMessage("Garçom chamado! Aguarde a chegada.");
+      setShowToast(true);
+      toastTimeoutRef.current = window.setTimeout(() => {
+        setShowToast(false);
+        toastTimeoutRef.current = null;
+      }, 2500);
+    } catch (error) {
+      console.error("Erro ao chamar garçom:", error);
+      setToastMessage("Erro ao chamar garçom. Tente novamente.");
+      setShowToast(true);
+      toastTimeoutRef.current = window.setTimeout(() => {
+        setShowToast(false);
+        toastTimeoutRef.current = null;
+      }, 2500);
+    } finally {
+      setCallingWaiter(false);
+    }
+  };
+
   const handleFinishOrder = async () => {
     // Verificações de validação
     if (!user?.id) {
@@ -556,112 +623,138 @@ export default function CustomerOrder() {
     <>
       {showWelcome && (
         <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-90 cursor-pointer select-none"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-90 cursor-pointer select-none safe-area-top"
           onClick={() => setShowWelcome(false)}
         >
           <img
             src="/assets/.jpg"
             alt="Bem-vindo"
-            className="w-24 h-24 mb-6 object-cover rounded-full"
+            className="w-16 sm:w-20 md:w-24 h-16 sm:h-20 md:h-24 mb-4 sm:mb-6 object-cover rounded-full"
           />
-          <h1 className="text-4xl font-bold text-white mb-4 text-center break-words max-[480px]:text-center">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-3 sm:mb-4 text-center break-words px-4">
             Bem-vindo
           </h1>
-          <p className="text-lg text-white mb-8">
+          <p className="text-base sm:text-lg text-white mb-6 sm:mb-8 text-center px-4">
             Clique na tela para acessar o cardápio.
           </p>
         </div>
       )}
       <div
-        className={`min-h-screen bg-gray-50${showWelcome ? " pointer-events-none select-none blur-sm" : ""}`}
+        className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100${showWelcome ? " pointer-events-none select-none blur-sm" : ""}`}
       >
         {/* Header */}
-        <header className="fixed top-0 left-0 right-0 z-40 bg-white shadow-sm border-b">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setActiveTab("menu")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition ${
-                  activeTab === "menu"
-                    ? "bg-black text-white"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                <Home className="w-5 h-5" />
-                <span className="hidden sm:inline">Cardápio</span>
-              </button>
-              <button
-                onClick={handleViewOrders}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition ${
-                  activeTab === "orders"
-                    ? "bg-black text-white"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                <History className="w-5 h-5" />
-                <span className="hidden sm:inline">Meus Pedidos</span>
-              </button>
+        <header className="fixed top-0 left-0 right-0 z-40 bg-white shadow-md border-b sticky safe-area-top">
+          <div className="w-full px-3 sm:px-4 md:px-6 py-4 sm:py-6">
+            <div className="flex items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-0">
+              <div className="flex items-center gap-1 sm:gap-4">
+                <button
+                  onClick={() => setActiveTab("menu")}
+                  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm transition duration-200 ${
+                    activeTab === "menu"
+                      ? "bg-black text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <Home className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden xs:inline">Cardápio</span>
+                </button>
+                <button
+                  onClick={handleViewOrders}
+                  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm transition duration-200 ${
+                    activeTab === "orders"
+                      ? "bg-black text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <History className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden xs:inline">Pedidos</span>
+                </button>
+              </div>
+
+              <div className="hidden sm:flex flex-col items-center flex-1">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
+                  Cardápio
+                </h1>
+                <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
+                  Mesa <span className="font-semibold">{user?.username}</span>
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button
+                  onClick={() => setShowUserQRCode(true)}
+                  className="p-2 sm:p-2.5 md:p-3 hover:bg-gray-100 rounded-lg transition duration-200"
+                  title="QR Code da Mesa"
+                >
+                  <Share2 className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" />
+                </button>
+                <button
+                  onClick={() => setShowCart(true)}
+                  className="relative p-2 sm:p-2.5 md:p-3 hover:bg-gray-100 rounded-lg transition duration-200"
+                >
+                  <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" />
+                  {cart.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center font-bold">
+                      {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    logout();
+                    navigate("/");
+                  }}
+                  className="p-2 sm:p-2.5 md:p-3 hover:bg-gray-100 rounded-lg transition duration-200"
+                  title="Sair"
+                >
+                  <LogOut className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" />
+                </button>
+              </div>
             </div>
 
-            <div className="flex flex-col items-center">
-              <h1 className="text-3xl font-bold text-gray-900">Cardápio</h1>
-              <p className="text-sm text-gray-600 mt-1">
+            {/* Mobile only title */}
+            <div className="sm:hidden text-center mt-2">
+              <h1 className="text-base font-bold text-gray-900">Cardápio</h1>
+              <p className="text-xs text-gray-600 mt-0.5">
                 Mesa <span className="font-semibold">{user?.username}</span>
               </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowUserQRCode(true)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition"
-                title="QR Code da Mesa"
-              >
-                <Share2 className="w-6 h-6" />
-              </button>
-              <button
-                onClick={() => setShowCart(true)}
-                className="relative p-2 hover:bg-gray-100 rounded-lg transition"
-              >
-                <ShoppingCart className="w-6 h-6" />
-                {cart.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-black text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
-                    {cart.reduce((sum, item) => sum + item.quantity, 0)}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  logout();
-                  navigate("/");
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition"
-                title="Sair"
-              >
-                <LogOut className="w-6 h-6" />
-              </button>
             </div>
           </div>
         </header>
 
-        <main className="container mx-auto px-4 py-6 pt-28">
+        <main className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3 pt-4 sm:pt-4 max-w-7xl mx-auto">
           {activeTab === "menu" ? (
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-0">
+              {/* Call Waiter Button */}
+              <div className="flex justify-center mb-2 sm:mb-4">
+                <button
+                  onClick={handleCallWaiter}
+                  disabled={callingWaiter}
+                  className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+                >
+                  <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <span className="text-sm sm:text-base">
+                    {callingWaiter ? "Chamando..." : "Chamar Garçom"}
+                  </span>
+                </button>
+              </div>
+
               {/* Menu Section */}
               <div>
                 {/* Search and Filters */}
                 <div
                   ref={filterRef}
-                  className="bg-white rounded-lg shadow-sm p-6 mb-6"
+                  className="bg-white rounded-lg shadow-sm p-3 sm:p-4 md:p-6 mb-4 sm:mb-6"
                 >
-                  <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4">
                     <div className="flex-1 relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                       <input
                         type="text"
                         placeholder="Buscar pratos..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                        className="w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
                       />
                       {searchQuery && (
                         <button
@@ -674,13 +767,13 @@ export default function CustomerOrder() {
                     </div>
 
                     {/* Desktop: Botão de filtro ao lado da pesquisa */}
-                    <div className="hidden md:block relative w-64">
+                    <div className="hidden md:block relative w-56 lg:w-64">
                       <button
                         onClick={() => setIsFilterOpen(!isFilterOpen)}
-                        className="w-full bg-black text-white px-6 py-2 rounded-lg font-semibold transition-all flex items-center justify-between gap-2 cursor-pointer"
+                        className="w-full bg-black text-white px-4 sm:px-6 py-2 rounded-lg font-semibold transition-all flex items-center justify-between gap-2 cursor-pointer text-sm md:text-base"
                       >
                         <div className="flex items-center gap-2">
-                          <Filter size={20} />
+                          <Filter size={18} />
                           <span>
                             Filtrar:{" "}
                             {selectedCategories.length > 0
@@ -689,7 +782,7 @@ export default function CustomerOrder() {
                           </span>
                         </div>
                         <ChevronDown
-                          size={20}
+                          size={18}
                           className={`transition-transform ${
                             isFilterOpen ? "rotate-180" : ""
                           }`}
@@ -705,7 +798,7 @@ export default function CustomerOrder() {
                             <button
                               key={category}
                               onClick={() => handleCategorySelect(category)}
-                              className={`w-full text-left px-6 py-3 border-b border-gray-100 last:border-0 font-semibold transition-all flex items-center cursor-pointer ${
+                              className={`w-full text-left px-4 sm:px-6 py-2 sm:py-3 border-b border-gray-100 last:border-0 font-semibold transition-all flex items-center cursor-pointer text-sm sm:text-base ${
                                 (category === "Todos" &&
                                   selectedCategories.length === 0) ||
                                 selectedCategories.includes(category)
@@ -725,12 +818,12 @@ export default function CustomerOrder() {
 
                   {/* Tags dos filtros selecionados - Desktop (centralizadas abaixo) */}
                   {selectedCategories.length > 0 && (
-                    <div className="hidden md:flex justify-center mb-6">
+                    <div className="hidden md:flex justify-center mb-4 sm:mb-6">
                       <div className="flex flex-wrap justify-center gap-2">
                         {selectedCategories.map((category) => (
                           <span
                             key={category}
-                            className="bg-black text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                            className="bg-black text-white px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm flex items-center gap-2"
                           >
                             {category.replace(/\b\w/g, (l) => l.toUpperCase())}
                             <button
@@ -746,16 +839,16 @@ export default function CustomerOrder() {
                   )}
 
                   <div>
-                    <div className="mb-6 md:hidden">
+                    <div className="mb-4 sm:mb-6 md:hidden">
                       {/* Mobile: Botão menor centralizado, tags abaixo */}
-                      <div className="flex justify-center mb-4">
+                      <div className="flex justify-center mb-3 sm:mb-4">
                         <div className="relative w-full max-w-xs">
                           <button
                             onClick={() => setIsFilterOpen(!isFilterOpen)}
-                            className="w-full bg-black text-white px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-between gap-2 cursor-pointer text-sm"
+                            className="w-full bg-black text-white px-3 sm:px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-between gap-2 cursor-pointer text-xs sm:text-sm"
                           >
-                            <div className="flex items-center gap-2">
-                              <Filter size={18} />
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <Filter size={16} />
                               <span>
                                 Filtrar:{" "}
                                 {selectedCategories.length > 0
@@ -764,7 +857,7 @@ export default function CustomerOrder() {
                               </span>
                             </div>
                             <ChevronDown
-                              size={18}
+                              size={16}
                               className={`transition-transform ${
                                 isFilterOpen ? "rotate-180" : ""
                               }`}
@@ -780,7 +873,7 @@ export default function CustomerOrder() {
                                 <button
                                   key={category}
                                   onClick={() => handleCategorySelect(category)}
-                                  className={`w-full text-left px-4 py-2 border-b border-gray-100 last:border-0 font-semibold transition-all flex items-center cursor-pointer text-sm ${
+                                  className={`w-full text-left px-3 sm:px-4 py-1.5 sm:py-2 border-b border-gray-100 last:border-0 font-semibold transition-all flex items-center cursor-pointer text-xs sm:text-sm ${
                                     (category === "Todos" &&
                                       selectedCategories.length === 0) ||
                                     selectedCategories.includes(category)
@@ -804,7 +897,7 @@ export default function CustomerOrder() {
                           {selectedCategories.map((category) => (
                             <span
                               key={category}
-                              className="bg-black text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                              className="bg-black text-white px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2"
                             >
                               {category.replace(/\b\w/g, (l) =>
                                 l.toUpperCase(),
@@ -866,43 +959,43 @@ export default function CustomerOrder() {
                       }),
                     );
                     return (
-                      <div key={category} className="mb-8">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-4 border-b pb-2">
+                      <div key={category} className="mb-6 sm:mb-8">
+                        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-3 sm:mb-4 border-b pb-2">
                           {category.replace(/\b\w/g, (l) => l.toUpperCase())}
                         </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                           {items.map((item) => (
                             <div
                               key={item.id}
-                              className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition"
+                              className="bg-white rounded-lg shadow-sm p-3 sm:p-4 hover:shadow-md transition-shadow"
                             >
-                              <div className="flex items-center gap-4">
+                              <div className="flex flex-col xs:flex-row items-start xs:items-center gap-2 xs:gap-3 sm:gap-4">
                                 <img
                                   src={item.image_url}
                                   alt={item.name}
-                                  className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                                  className="w-16 h-16 xs:w-20 xs:h-20 object-cover rounded-lg flex-shrink-0"
                                 />
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-bold text-lg mb-1">
+                                <div className="flex-1 min-w-0 w-full">
+                                  <h3 className="font-bold text-sm xs:text-base sm:text-lg mb-1 line-clamp-2">
                                     {item.name}
                                   </h3>
                                   <button
                                     onClick={() => openItemDetails(item)}
-                                    className="text-blue-600 hover:text-blue-800 text-sm font-medium mb-3 block"
+                                    className="text-blue-600 hover:text-blue-800 text-xs xs:text-sm font-medium mb-2 block"
                                   >
                                     ver detalhes
                                   </button>
-                                  <span className="text-xl font-bold text-gray-900 block">
+                                  <span className="text-base xs:text-lg sm:text-xl font-bold text-gray-900 block mb-2 xs:mb-0">
                                     R$ {item.price.toFixed(2)}
                                   </span>
                                 </div>
-                                <div className="flex items-center">
+                                <div className="flex items-center w-full xs:w-auto">
                                   <button
                                     onClick={() => addToCart(item)}
-                                    className="bg-black text-white px-3 py-2 rounded-lg hover:bg-gray-800 transition flex items-center gap-2"
+                                    className="flex-1 xs:flex-none bg-black text-white px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg hover:bg-gray-800 transition-all flex items-center justify-center xs:justify-start gap-1 xs:gap-2 text-xs xs:text-sm"
                                   >
-                                    <ShoppingCart className="w-4 h-4" />
-                                    <Plus className="w-4 h-4" />
+                                    <ShoppingCart className="w-3 h-3 xs:w-4 xs:h-4" />
+                                    <Plus className="w-3 h-3 xs:w-4 xs:h-4" />
                                   </button>
                                 </div>
                               </div>
@@ -917,16 +1010,16 @@ export default function CustomerOrder() {
             </div>
           ) : (
             /* Orders Tab */
-            <div>
+            <div className="space-y-4 sm:space-y-6">
               {currentOrder ? (
-                <div className="max-w-2xl mx-auto">
-                  <div className="bg-white rounded-lg shadow-sm p-8 mb-6">
-                    <div className="text-center mb-6">
-                      <h2 className="text-2xl font-bold mb-2">
+                <div className="max-w-2xl mx-auto w-full">
+                  <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 md:p-8 mb-4 sm:mb-6">
+                    <div className="text-center mb-4 sm:mb-6">
+                      <h2 className="text-xl sm:text-2xl font-bold mb-2">
                         Status do Pedido
                       </h2>
                       {currentOrder.assigned_to && (
-                        <p className="text-sm text-gray-500 mt-2">
+                        <p className="text-xs sm:text-sm text-gray-500 mt-2">
                           Atendido por:{" "}
                           <span className="font-semibold text-gray-700">
                             {currentOrder.assigned_employee?.username ||
@@ -934,29 +1027,29 @@ export default function CustomerOrder() {
                           </span>
                         </p>
                       )}
-                      <p className="text-gray-600">
+                      <p className="text-xs sm:text-sm text-gray-600">
                         Pedido #{formatOrderNumericId(currentOrder.id)}
                       </p>
                     </div>
 
-                    <div className="space-y-6 h-64 flex items-center justify-center">
+                    <div className="space-y-4 sm:space-y-6 min-h-48 sm:min-h-64 flex items-center justify-center">
                       {currentOrder.status === "pending" && (
                         <div className="text-center">
-                          <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Clock className="w-10 h-10 text-yellow-600" />
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                            <Clock className="w-8 h-8 sm:w-10 sm:h-10 text-yellow-600" />
                           </div>
-                          <h3 className="text-xl font-bold text-yellow-700 mb-2">
+                          <h3 className="text-base sm:text-lg md:text-xl font-bold text-yellow-700 mb-1 sm:mb-2">
                             Aguardando confirmação
                           </h3>
-                          <p className="text-gray-600 mb-4">
+                          <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
                             Seu pedido foi enviado e está aguardando aprovação
                             do restaurante.
                           </p>
                           <button
                             onClick={() => cancelOrder(currentOrder.id)}
-                            className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition flex items-center gap-2 mx-auto"
+                            className="bg-red-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-red-600 transition flex items-center gap-2 mx-auto text-xs sm:text-sm"
                           >
-                            <X className="w-4 h-4" />
+                            <X className="w-3 h-3 sm:w-4 sm:h-4" />
                             Cancelar Pedido
                           </button>
                         </div>
@@ -964,13 +1057,13 @@ export default function CustomerOrder() {
 
                       {currentOrder.status === "preparing" && (
                         <div className="text-center">
-                          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <ChefHat className="w-10 h-10 text-blue-600" />
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                            <ChefHat className="w-8 h-8 sm:w-10 sm:h-10 text-blue-600" />
                           </div>
-                          <h3 className="text-xl font-bold text-blue-700 mb-2">
+                          <h3 className="text-base sm:text-lg md:text-xl font-bold text-blue-700 mb-1 sm:mb-2">
                             Preparando seu pedido
                           </h3>
-                          <p className="text-gray-600">
+                          <p className="text-xs sm:text-sm text-gray-600">
                             Seu pedido está sendo preparado. Aguarde
                           </p>
                         </div>
@@ -978,13 +1071,13 @@ export default function CustomerOrder() {
 
                       {currentOrder.status === "ready" && (
                         <div className="text-center">
-                          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Utensils className="w-10 h-10 text-green-600" />
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                            <Utensils className="w-8 h-8 sm:w-10 sm:h-10 text-green-600" />
                           </div>
-                          <h3 className="text-xl font-bold text-green-700 mb-2">
+                          <h3 className="text-base sm:text-lg md:text-xl font-bold text-green-700 mb-1 sm:mb-2">
                             Pedido pronto!
                           </h3>
-                          <p className="text-gray-600">
+                          <p className="text-xs sm:text-sm text-gray-600">
                             Seu pedido está pronto. Aguarde que levaremos à sua
                             mesa em breve.
                           </p>
@@ -993,13 +1086,13 @@ export default function CustomerOrder() {
 
                       {currentOrder.status === "completed" && (
                         <div className="text-center">
-                          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <CheckCircle className="w-10 h-10 text-green-600" />
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                            <CheckCircle className="w-8 h-8 sm:w-10 sm:h-10 text-green-600" />
                           </div>
-                          <h3 className="text-xl font-bold text-green-700 mb-2">
+                          <h3 className="text-base sm:text-lg md:text-xl font-bold text-green-700 mb-1 sm:mb-2">
                             Pedido finalizado
                           </h3>
-                          <p className="text-green-600 mb-4">
+                          <p className="text-xs sm:text-sm text-green-600 mb-3 sm:mb-4">
                             Seu pedido foi finalizado.
                           </p>
                         </div>
@@ -1007,13 +1100,13 @@ export default function CustomerOrder() {
 
                       {currentOrder.status === "cancelled" && (
                         <div className="text-center">
-                          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <X className="w-10 h-10 text-red-600" />
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                            <X className="w-8 h-8 sm:w-10 sm:h-10 text-red-600" />
                           </div>
-                          <h3 className="text-xl font-bold text-red-700 mb-2">
+                          <h3 className="text-base sm:text-lg md:text-xl font-bold text-red-700 mb-1 sm:mb-2">
                             Pedido cancelado
                           </h3>
-                          <p className="text-red-600">
+                          <p className="text-xs sm:text-sm text-red-600">
                             Seu pedido foi cancelado.
                           </p>
                         </div>
@@ -1022,36 +1115,36 @@ export default function CustomerOrder() {
 
                     {/* Itens do Pedido */}
                     {currentOrderItems.length > 0 && (
-                      <div className="mt-8 bg-gray-50 p-6 rounded-lg">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      <div className="mt-6 sm:mt-8 bg-gray-50 p-3 sm:p-4 md:p-6 rounded-lg">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                           Itens do Pedido
                         </h3>
-                        <div className="space-y-3 mb-4">
+                        <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
                           {currentOrderItems.map((item) => (
                             <div
                               key={item.id}
-                              className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0"
+                              className="flex justify-between items-start xs:items-center gap-2 py-2 border-b border-gray-200 last:border-b-0"
                             >
-                              <div className="flex-1">
-                                <p className="font-medium text-gray-900">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 text-xs sm:text-sm break-words">
                                   {item.menu_items?.name}
                                 </p>
-                                <p className="text-sm text-gray-600">
+                                <p className="text-xs text-gray-600">
                                   {item.quantity}x R$ {item.price.toFixed(2)}
                                 </p>
                               </div>
-                              <p className="font-semibold text-gray-900">
+                              <p className="font-semibold text-gray-900 text-xs sm:text-sm whitespace-nowrap">
                                 R$ {(item.price * item.quantity).toFixed(2)}
                               </p>
                             </div>
                           ))}
                         </div>
-                        <div className="border-t-2 border-gray-300 pt-4">
+                        <div className="border-t-2 border-gray-300 pt-3 sm:pt-4">
                           <div className="flex justify-between items-center">
-                            <p className="text-lg font-bold text-gray-900">
+                            <p className="text-base sm:text-lg font-bold text-gray-900">
                               Total
                             </p>
-                            <p className="text-lg font-bold text-gray-900">
+                            <p className="text-base sm:text-lg font-bold text-gray-900">
                               R$ {currentOrder.total.toFixed(2)}
                             </p>
                           </div>
@@ -1059,10 +1152,10 @@ export default function CustomerOrder() {
                       </div>
                     )}
 
-                    <div className="mt-8 text-center">
+                    <div className="mt-6 sm:mt-8 text-center">
                       <button
                         onClick={handleNewOrder}
-                        className="bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition"
+                        className="bg-black text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-gray-800 transition text-sm sm:text-base"
                       >
                         Fazer Novo Pedido
                       </button>
@@ -1070,14 +1163,14 @@ export default function CustomerOrder() {
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-12">
-                  <History className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                  <p className="text-gray-500 text-lg mb-4">
+                <div className="text-center py-8 sm:py-12">
+                  <History className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-300 mb-3 sm:mb-4" />
+                  <p className="text-gray-500 text-base sm:text-lg mb-3 sm:mb-4">
                     Você ainda não fez nenhum pedido.
                   </p>
                   <button
                     onClick={handleNewOrder}
-                    className="bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition"
+                    className="bg-black text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-gray-800 transition text-sm sm:text-base"
                   >
                     Fazer Primeiro Pedido
                   </button>
@@ -1085,27 +1178,27 @@ export default function CustomerOrder() {
               )}
 
               {userOrders.length > 1 && (
-                <div className="mt-8">
-                  <h3 className="text-xl font-bold mb-4">
+                <div className="mt-6 sm:mt-8">
+                  <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">
                     Histórico de Pedidos
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     {userOrders.map((order) => (
                       <div
                         key={order.id}
-                        className={`bg-white rounded-lg shadow-sm p-4 cursor-pointer transition hover:shadow-md ${
+                        className={`bg-white rounded-lg shadow-sm p-3 sm:p-4 cursor-pointer transition hover:shadow-md ${
                           order.id === currentOrder?.id
                             ? "ring-2 ring-black"
                             : ""
                         }`}
                         onClick={() => handleViewOrder(order)}
                       >
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-semibold">
+                        <div className="flex justify-between items-start gap-2 mb-2">
+                          <h4 className="font-semibold text-xs sm:text-sm">
                             Pedido #{formatOrderNumericId(order.id)}
                           </h4>
                           <span
-                            className={`px-2 py-1 rounded text-xs font-semibold ${
+                            className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
                               order.status === "pending"
                                 ? "bg-yellow-100 text-yellow-800"
                                 : order.status === "preparing"
@@ -1128,7 +1221,7 @@ export default function CustomerOrder() {
                                     : "Finalizado"}
                           </span>
                         </div>
-                        <p className="text-gray-600 text-sm mb-1">
+                        <p className="text-gray-600 text-xs sm:text-sm mb-1">
                           R$ {order.total.toFixed(2)}
                         </p>
                         <p className="text-gray-500 text-xs">
@@ -1155,99 +1248,101 @@ export default function CustomerOrder() {
         {/* Cart Modal */}
         {showCart && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4 safe-area-bottom"
             onClick={() => setShowCart(false)}
           >
             <div
               className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between p-4 border-b">
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5" />
+              <div className="flex items-center justify-between p-3 sm:p-4 border-b">
+                <h2 className="text-base sm:text-lg md:text-xl font-bold flex items-center gap-2">
+                  <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
                   Carrinho
                 </h2>
                 <button
                   onClick={() => setShowCart(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 hover:bg-gray-100 rounded transition"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
 
-              <div className="p-4 max-h-[70vh] overflow-y-auto">
+              <div className="p-3 sm:p-4 max-h-[70vh] overflow-y-auto">
                 {cart.length === 0 ? (
-                  <div className="text-center py-8">
-                    <ShoppingCart className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-                    <p className="text-gray-500">Carrinho vazio</p>
+                  <div className="text-center py-6 sm:py-8">
+                    <ShoppingCart className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-300 mb-3 sm:mb-4" />
+                    <p className="text-gray-500 text-sm sm:text-base">
+                      Carrinho vazio
+                    </p>
                   </div>
                 ) : (
                   <>
-                    <div className="space-y-3 mb-4">
+                    <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
                       {cart.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg"
+                          className="flex items-center gap-2 sm:gap-3 bg-gray-50 p-2 sm:p-3 rounded-lg"
                         >
                           <img
                             src={item.image_url}
                             alt={item.name}
-                            className="w-12 h-12 object-cover rounded"
+                            className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded flex-shrink-0"
                           />
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-sm truncate">
+                            <h4 className="font-medium text-xs sm:text-sm truncate">
                               {item.name}
                             </h4>
-                            <p className="text-gray-600 text-sm">
+                            <p className="text-gray-600 text-xs sm:text-sm">
                               R$ {item.price.toFixed(2)} cada
                             </p>
-                            <p className="text-gray-800 font-semibold text-sm">
+                            <p className="text-gray-800 font-semibold text-xs sm:text-sm">
                               Total: R${" "}
                               {(item.price * item.quantity).toFixed(2)}
                             </p>
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-0.5 sm:gap-1">
                             <button
                               onClick={() => updateQuantity(item.id, -1)}
-                              className="p-1 hover:bg-gray-200 rounded"
+                              className="p-1 hover:bg-gray-200 rounded transition"
                             >
-                              <Minus className="w-4 h-4" />
+                              <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
                             </button>
-                            <span className="font-bold w-6 text-center text-sm">
+                            <span className="font-bold w-5 sm:w-6 text-center text-xs sm:text-sm">
                               {item.quantity}
                             </span>
                             <button
                               onClick={() => updateQuantity(item.id, 1)}
-                              className="p-1 hover:bg-gray-200 rounded"
+                              className="p-1 hover:bg-gray-200 rounded transition"
                             >
-                              <Plus className="w-4 h-4" />
+                              <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                             </button>
                           </div>
                           <button
                             onClick={() => removeFromCart(item.id)}
-                            className="p-1 hover:bg-red-100 text-red-600 rounded"
+                            className="p-1 hover:bg-red-100 text-red-600 rounded transition flex-shrink-0"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                           </button>
                         </div>
                       ))}
                     </div>
 
-                    <div className="border-t pt-4 space-y-4">
-                      <div className="flex justify-between items-center text-lg font-bold">
+                    <div className="border-t pt-3 sm:pt-4 space-y-3 sm:space-y-4">
+                      <div className="flex justify-between items-center text-base sm:text-lg font-bold">
                         <span>Total:</span>
                         <span>R$ {getTotal().toFixed(2)}</span>
                       </div>
 
                       {/* Payment Method Select */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
+                      <div className="space-y-1.5 sm:space-y-2">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700">
                           Forma de Pagamento *
                         </label>
                         <select
                           value={paymentMethod}
                           onChange={(e) => setPaymentMethod(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
                         >
                           <option value="">Selecione...</option>
                           <option value="pix">PIX</option>
@@ -1262,15 +1357,15 @@ export default function CustomerOrder() {
                       </div>
 
                       {/* Observations Textarea */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
+                      <div className="space-y-1.5 sm:space-y-2">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700">
                           Observações (opcional)
                         </label>
                         <textarea
                           value={observations}
                           onChange={(e) => setObservations(e.target.value)}
                           placeholder="Ex: remover cebola, sem molho, etc."
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none resize-none"
+                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none resize-none"
                           rows={3}
                         />
                       </div>
@@ -1278,7 +1373,7 @@ export default function CustomerOrder() {
                       <button
                         onClick={handleFinishOrder}
                         disabled={!paymentMethod || loading}
-                        className="w-full bg-black text-white py-3 rounded-lg font-bold hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-black text-white py-2 sm:py-3 rounded-lg font-bold hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
                       >
                         {loading ? "Finalizando..." : "Finalizar Pedido"}
                       </button>
@@ -1299,38 +1394,44 @@ export default function CustomerOrder() {
         {/* Item Details Modal */}
         {showItemDetails && selectedItem && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4 safe-area-bottom"
             onClick={() => setShowItemDetails(false)}
           >
             <div
-              className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden"
+              className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between p-4 border-b">
-                <h2 className="text-xl font-bold">{selectedItem.name}</h2>
+              <div className="flex items-center justify-between p-3 sm:p-4 border-b sticky top-0 bg-white">
+                <h2 className="text-base sm:text-lg md:text-xl font-bold truncate">
+                  {selectedItem.name}
+                </h2>
                 <button
                   onClick={() => setShowItemDetails(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 hover:bg-gray-100 rounded transition flex-shrink-0 ml-2"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
 
-              <div className="p-4">
+              <div className="p-3 sm:p-4">
                 <img
                   src={selectedItem.image_url}
                   alt={selectedItem.name}
-                  className="w-48 h-48 object-cover rounded-lg mb-4 mx-auto"
+                  className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 object-cover rounded-lg mb-3 sm:mb-4 mx-auto"
                 />
 
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <div>
-                    <h3 className="font-semibold text-lg mb-2">Detalhes</h3>
-                    <p className="text-gray-600">{selectedItem.description}</p>
+                    <h3 className="font-semibold text-base sm:text-lg mb-1.5 sm:mb-2">
+                      Detalhes
+                    </h3>
+                    <p className="text-gray-600 text-xs sm:text-sm">
+                      {selectedItem.description}
+                    </p>
                   </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t">
-                    <span className="text-2xl font-bold text-gray-900">
+                  <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3 pt-3 sm:pt-4 border-t">
+                    <span className="text-xl sm:text-2xl font-bold text-gray-900">
                       R$ {selectedItem.price.toFixed(2)}
                     </span>
                     <button
@@ -1338,10 +1439,10 @@ export default function CustomerOrder() {
                         addToCart(selectedItem);
                         setShowItemDetails(false);
                       }}
-                      className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition flex items-center gap-2"
+                      className="w-full xs:w-auto bg-black text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-gray-800 transition flex items-center justify-center gap-2 text-xs sm:text-sm"
                     >
-                      <ShoppingCart className="w-4 h-4" />
-                      Adicionar ao Carrinho
+                      <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4" />
+                      Adicionar
                     </button>
                   </div>
                 </div>
@@ -1351,8 +1452,8 @@ export default function CustomerOrder() {
         )}
 
         {showToast && (
-          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
-            <div className="bg-green-600 bg-opacity-90 text-white px-4 py-3 rounded-lg shadow-md max-w-lg w-full text-center">
+          <div className="fixed bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 z-50 px-3">
+            <div className="bg-green-600 bg-opacity-90 text-white px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-md max-w-lg w-full text-center text-xs sm:text-sm">
               {toastMessage}
             </div>
           </div>

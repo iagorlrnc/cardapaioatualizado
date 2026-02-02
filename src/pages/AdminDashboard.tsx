@@ -1053,8 +1053,8 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-black">
       <header className="bg-white text-black shadow-lg sticky top-0 z-40">
-        <div className="w-full px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
-          <h1 className="text-lg sm:text-2xl font-bold">
+        <div className="w-full py-8 px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
+          <h1 className="text-2xl sm:text-2xl font-bold">
             Painel de Administrador
           </h1>
           <button
@@ -1064,7 +1064,7 @@ export default function AdminDashboard() {
             }}
             className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition text-sm sm:text-base"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-8 h-6" />
             <span className="hidden sm:inline">Sair</span>
           </button>
         </div>
@@ -1716,7 +1716,7 @@ export default function AdminDashboard() {
                                   </button>
                                   <button
                                     onClick={() => handleDeleteItem(item.id)}
-                                    className="px-2 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200 transition"
+                                    className="px-2 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200 transition flex items-center justify-center"
                                   >
                                     <Trash2 className="w-3 h-3" />
                                   </button>
@@ -1958,8 +1958,8 @@ export default function AdminDashboard() {
                   {(() => {
                     const usersByType = users.reduce(
                       (acc, user) => {
-                        let type = "Cliente";
-                        if (user.is_admin) type = "Admin";
+                        let type = "Mesa";
+                        if (user.is_admin) type = "Administrador";
                         else if (user.is_employee) type = "Funcionário";
 
                         if (!acc[type]) acc[type] = [];

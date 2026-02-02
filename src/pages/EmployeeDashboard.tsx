@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, ChevronDown, Trash2, Lock, Unlock } from "lucide-react";
+import {
+  LogOut,
+  ChevronDown,
+  Trash2,
+  Lock,
+  Unlock,
+  Bell,
+  X,
+} from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase, Order } from "../lib/supabase";
 import { toast } from "react-toastify";
@@ -35,11 +43,22 @@ export default function EmployeeDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<"orders" | "tables">("orders");
+  const [activeTab, setActiveTab] = useState<
+    "orders" | "tables" | "notifications"
+  >("orders");
   const [allUsers, setAllUsers] = useState<
     Array<{ id: string; username: string }>
   >([]);
   const [sessionUsers, setSessionUsers] = useState<Set<string>>(new Set());
+  const [waiterCalls, setWaiterCalls] = useState<
+    Array<{
+      id: string;
+      user_id: string;
+      table_name: string;
+      status: string;
+      created_at: string;
+    }>
+  >([]);
 
   const fetchOrders = async () => {
     try {
@@ -116,6 +135,34 @@ export default function EmployeeDashboard() {
     }
   };
 
+  const fetchWaiterCalls = async () => {
+    try {
+      const { data } = await supabase
+        .from("waiter_calls")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+      setWaiterCalls(data || []);
+    } catch (error) {
+      console.error("Erro ao buscar chamadas de garçom:", error);
+    }
+  };
+
+  const markCallAsCompleted = async (callId: string) => {
+    try {
+      const { error } = await supabase
+        .from("waiter_calls")
+        .update({ status: "completed" })
+        .eq("id", callId);
+
+      if (error) throw error;
+
+      fetchWaiterCalls();
+    } catch (error) {
+      console.error("Erro ao marcar chamada como concluída:", error);
+    }
+  };
+
   const loadSessionUsers = async () => {
     try {
       const { data } = await supabase
@@ -188,39 +235,21 @@ export default function EmployeeDashboard() {
     }
   };
 
-  const fetchOrderItems = async (orderId: string) => {
-    const { data } = await supabase
-      .from("order_items")
-      .select(
-        `
-        *,
-        menu_items (*)
-      `,
-      )
-      .eq("order_id", orderId);
-
-    if (data) {
-      // Not needed anymore, but keeping for compatibility
-    }
-  };
-
   useEffect(() => {
     fetchMenuItems();
     fetchOrders();
     fetchAllUsers();
     loadSessionUsers();
+    fetchWaiterCalls();
 
     const interval = setInterval(() => {
       fetchOrders();
       loadSessionUsers();
-    }, 3000);
+      fetchWaiterCalls();
+    }, 2000);
 
     return () => clearInterval(interval);
   }, []);
-
-  const handleOrderClick = async (order: Order) => {
-    // Not needed anymore
-  };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
@@ -282,6 +311,38 @@ export default function EmployeeDashboard() {
     fetchOrders();
   };
 
+  const handleClearAllOrders = async (username: string) => {
+    if (
+      !confirm(`Deseja realmente limpar todos os pedidos da Mesa ${username}?`)
+    ) {
+      return;
+    }
+
+    try {
+      // Pegar todos os IDs dos pedidos dessa mesa
+      const orderIds = orders
+        .filter((order) => order.users?.username === username)
+        .map((order) => order.id);
+
+      // Ocultar todos os pedidos dessa mesa
+      const { error } = await supabase
+        .from("orders")
+        .update({ hidden: true })
+        .in("id", orderIds);
+
+      if (error) {
+        toast.error("Erro ao limpar pedidos: " + error.message);
+        return;
+      }
+
+      toast.success(`Todos os pedidos da Mesa ${username} foram removidos!`);
+      fetchOrders();
+    } catch (error) {
+      console.error("Erro ao limpar pedidos:", error);
+      toast.error("Erro ao limpar pedidos");
+    }
+  };
+
   const toggleUserAccordion = (username: string) => {
     const newSet = new Set(expandedUsers);
     if (newSet.has(username)) {
@@ -290,34 +351,6 @@ export default function EmployeeDashboard() {
       newSet.add(username);
     }
     setExpandedUsers(newSet);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "preparing":
-        return "bg-blue-100 text-blue-800";
-      case "ready":
-        return "bg-green-100 text-green-800";
-      case "completed":
-        return "bg-gray-100 text-gray-800";
-      case "cancelled":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      pending: "Aguardando",
-      preparing: "Preparando",
-      ready: "Pronto",
-      completed: "Finalizado",
-      cancelled: "Cancelado",
-    };
-    return labels[status] || status;
   };
 
   if (loading) {
@@ -329,12 +362,12 @@ export default function EmployeeDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between py-4">
-            <h1 className="text-3xl font-bold text-gray-900">
+      <header className="bg-white shadow-md border-b sticky top-0 z-40">
+        <div className="w-full pt-8 px-3 sm:px-4 md:px-6">
+          <div className="flex items-center justify-between py-3 sm:py-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
               Painel de Pedidos
             </h1>
             <button
@@ -342,26 +375,31 @@ export default function EmployeeDashboard() {
                 logout();
                 navigate("/");
               }}
-              className="p-2 hover:bg-gray-100 rounded-lg transition"
+              className="p-2 sm:p-2.5 md:p-3 hover:bg-gray-100 rounded-lg transition duration-200"
               title="Sair"
             >
-              <LogOut className="w-6 h-6" />
+              <LogOut className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" />
             </button>
           </div>
-          <div className="flex gap-4 border-t">
+          <div className="flex gap-0 border-t relative">
             <button
               onClick={() => setActiveTab("orders")}
-              className={`px-4 py-3 font-semibold transition ${
+              className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 font-semibold text-base sm:text-lg md:text-xl transition duration-200 flex items-center justify-center gap-2 relative ${
                 activeTab === "orders"
                   ? "border-b-2 border-black text-black"
                   : "text-gray-600 hover:text-black"
               }`}
             >
               Pedidos
+              {orders.filter((o) => o.status === "pending").length > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 font-bold">
+                  {orders.filter((o) => o.status === "pending").length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setActiveTab("tables")}
-              className={`px-4 py-3 font-semibold transition ${
+              className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 font-semibold text-base sm:text-lg md:text-xl transition duration-200 ${
                 activeTab === "tables"
                   ? "border-b-2 border-black text-black"
                   : "text-gray-600 hover:text-black"
@@ -369,15 +407,32 @@ export default function EmployeeDashboard() {
             >
               Mesas
             </button>
+            <button
+              onClick={() => setActiveTab("notifications")}
+              className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 font-semibold text-base sm:text-lg md:text-xl transition duration-200 flex items-center justify-center gap-2 relative ${
+                activeTab === "notifications"
+                  ? "border-b-2 border-black text-black"
+                  : "text-gray-600 hover:text-black"
+              }`}
+            >
+              <Bell className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
+              {waiterCalls.length > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 font-bold">
+                  {waiterCalls.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 max-w-7xl mx-auto">
         {activeTab === "orders" ? (
-          <div>
-            <h2 className="text-2xl font-bold text-black mb-6">Pedidos</h2>
-            <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-black">
+              Pedidos
+            </h2>
+            <div className="space-y-3 sm:space-y-4">
               {(() => {
                 const ordersByUser = orders
                   .filter((order) => !order.hidden)
@@ -392,75 +447,84 @@ export default function EmployeeDashboard() {
                   );
 
                 return Object.keys(ordersByUser).length === 0 ? (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 text-center py-8">
                     Não há pedidos no momento
                   </p>
                 ) : (
                   Object.entries(ordersByUser).map(([username, userOrders]) => (
                     <div
                       key={username}
-                      className="border rounded-lg bg-gray-50"
+                      className="border rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow"
                     >
                       <button
                         onClick={() => toggleUserAccordion(username)}
-                        className="w-full text-left p-4 font-bold text-lg text-black hover:bg-gray-100 transition flex items-center justify-between"
+                        className="w-full text-left p-3 sm:p-4 font-bold text-base sm:text-lg text-black hover:bg-gray-50 transition flex items-center justify-between"
                       >
-                        <span className="flex items-center gap-2">
-                          Pedidos da Mesa {username}
+                        <span className="flex items-center gap-2 flex-wrap">
+                          <span className="whitespace-nowrap">
+                            Pedidos da Mesa {username}
+                          </span>
                           {userOrders.some((o) => o.status === "pending") && (
-                            <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                            <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap">
                               Novo
                             </span>
                           )}
                           {userOrders.every(
                             (o) => o.status === "cancelled",
                           ) && (
-                            <span className="bg-gray-500 text-white text-xs px-2 py-1 rounded-full">
+                            <span className="bg-gray-500 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap">
                               Cancelado
                             </span>
                           )}
                         </span>
                         <ChevronDown
-                          className={`w-5 h-5 transition-transform ${expandedUsers.has(username) ? "rotate-180" : ""}`}
+                          className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform flex-shrink-0 ml-2`}
+                          style={{
+                            transform: expandedUsers.has(username)
+                              ? "rotate(180deg)"
+                              : "rotate(0)",
+                          }}
                         />
                       </button>
                       {expandedUsers.has(username) && (
-                        <div className="p-4 space-y-4">
+                        <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 border-t bg-gray-50">
                           {userOrders.map((order) => (
                             <div
                               key={order.id}
-                              className="border rounded-lg p-4 bg-white"
+                              className="border rounded-lg p-3 sm:p-4 bg-white hover:shadow-md transition-shadow"
                             >
-                              <div className="flex justify-between items-start mb-4">
-                                <div>
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <h3 className="font-bold text-lg text-black">
-                                      Pedido da Mesa{" "}
-                                      {order.users?.username || "Cliente"}
+                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4 mb-4">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
+                                    <h3 className="font-bold text-base sm:text-lg text-black break-words">
+                                      Mesa {order.users?.username || "Cliente"}
                                     </h3>
                                     {order.assigned_to &&
                                       order.assignedEmployee && (
-                                        <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-semibold">
+                                        <span className="bg-blue-100 text-blue-800 text-xs px-2 sm:px-3 py-1 rounded-full font-semibold whitespace-nowrap">
                                           Atendido por:{" "}
                                           {order.assignedEmployee.username}
                                         </span>
                                       )}
                                   </div>
-                                  <p className="text-gray-600">
+                                  <p className="text-xs sm:text-sm text-gray-600">
                                     Pedido #{formatOrderNumericId(order.id)}
                                   </p>
-                                  <p className="text-gray-600">
+                                  <p className="text-xs sm:text-sm text-gray-600">
                                     {new Date(order.created_at).toLocaleString(
                                       "pt-BR",
                                     )}
                                   </p>
                                 </div>
-                                <div className="text-right">
-                                  <p className="text-2xl font-bold text-black">
+                                <div className="text-left sm:text-left w-full sm:w-auto">
+                                  <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                                    Total
+                                  </p>
+                                  <p className="text-xl sm:text-2xl font-bold text-black">
                                     R$ {order.total.toFixed(2)}
                                   </p>
                                   {order.status === "pending" && (
-                                    <div className="mt-2 flex gap-2">
+                                    <div className="mt-3 flex flex-col sm:flex-row gap-2">
                                       <button
                                         onClick={() =>
                                           updateOrderStatus(
@@ -468,7 +532,7 @@ export default function EmployeeDashboard() {
                                             "preparing",
                                           )
                                         }
-                                        className="px-3 py-1 bg-black text-white rounded-lg text-sm hover:bg-gray-800 transition"
+                                        className="px-3 sm:px-4 py-2 bg-black text-white rounded-lg text-xs sm:text-sm hover:bg-gray-800 transition font-semibold flex-1"
                                       >
                                         Aceitar
                                       </button>
@@ -479,21 +543,21 @@ export default function EmployeeDashboard() {
                                             "cancelled",
                                           )
                                         }
-                                        className="px-3 py-1 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition"
+                                        className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg text-xs sm:text-sm hover:bg-red-600 transition font-semibold flex-1"
                                       >
                                         Cancelar
                                       </button>
                                     </div>
                                   )}
                                   {order.status === "preparing" && (
-                                    <div className="mt-2 flex gap-2">
+                                    <div className="mt-3 flex flex-col sm:flex-row gap-2">
                                       <button
                                         onClick={() =>
                                           updateOrderStatus(order.id, "ready")
                                         }
-                                        className="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition flex-1"
+                                        className="px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg text-xs sm:text-sm hover:bg-blue-600 transition font-semibold flex-1"
                                       >
-                                        Preparando
+                                        Pronto
                                       </button>
                                       <button
                                         onClick={() =>
@@ -502,14 +566,14 @@ export default function EmployeeDashboard() {
                                             "cancelled",
                                           )
                                         }
-                                        className="px-3 py-1 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition"
+                                        className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg text-xs sm:text-sm hover:bg-red-600 transition font-semibold flex-1"
                                       >
                                         Cancelar
                                       </button>
                                     </div>
                                   )}
                                   {order.status === "ready" && (
-                                    <div className="mt-2 flex gap-2">
+                                    <div className="mt-3 flex flex-col sm:flex-row gap-2">
                                       <button
                                         onClick={() =>
                                           updateOrderStatus(
@@ -517,9 +581,9 @@ export default function EmployeeDashboard() {
                                             "completed",
                                           )
                                         }
-                                        className="px-3 py-1 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition flex-1"
+                                        className="px-3 sm:px-4 py-2 bg-green-500 text-white rounded-lg text-xs sm:text-sm hover:bg-green-600 transition font-semibold flex-1"
                                       >
-                                        Concluído
+                                        Finalizar
                                       </button>
                                       <button
                                         onClick={() =>
@@ -528,22 +592,22 @@ export default function EmployeeDashboard() {
                                             "cancelled",
                                           )
                                         }
-                                        className="px-3 py-1 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition"
+                                        className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg text-xs sm:text-sm hover:bg-red-600 transition font-semibold flex-1"
                                       >
                                         Cancelar
                                       </button>
                                     </div>
                                   )}
                                   {order.status === "completed" && (
-                                    <div className="mt-2 flex items-center gap-2">
-                                      <span className="px-3 py-1 bg-gray-500 text-white rounded-lg text-sm">
+                                    <div className="mt-3 flex items-center gap-2 flex-wrap">
+                                      <span className="px-3 sm:px-4 py-2 bg-gray-500 text-white rounded-lg text-xs sm:text-sm font-semibold">
                                         Finalizado
                                       </span>
                                       <button
                                         onClick={() =>
                                           handleDeleteOrder(order.id)
                                         }
-                                        className="p-1 bg-red-500 text-white rounded hover:bg-red-600 transition"
+                                        className="p-2 bg-red-500 text-white rounded hover:bg-red-600 transition flex items-center justify-center"
                                         title="Ocultar pedido"
                                       >
                                         <Trash2 className="w-4 h-4" />
@@ -551,15 +615,15 @@ export default function EmployeeDashboard() {
                                     </div>
                                   )}
                                   {order.status === "cancelled" && (
-                                    <div className="mt-2 flex items-center gap-2">
-                                      <span className="px-3 py-1 bg-red-500 text-white rounded-lg text-sm">
+                                    <div className="mt-3 flex items-center gap-2 flex-wrap">
+                                      <span className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg text-xs sm:text-sm font-semibold">
                                         Cancelado
                                       </span>
                                       <button
                                         onClick={() =>
                                           handleDeleteOrder(order.id)
                                         }
-                                        className="p-1 bg-red-500 text-white rounded hover:bg-red-600 transition"
+                                        className="p-2 bg-red-500 text-white rounded hover:bg-red-600 transition flex items-center justify-center"
                                         title="Ocultar pedido"
                                       >
                                         <Trash2 className="w-4 h-4" />
@@ -572,13 +636,13 @@ export default function EmployeeDashboard() {
                                 {order.order_items?.map((item) => (
                                   <div
                                     key={item.id}
-                                    className="text-sm text-gray-700"
+                                    className="text-xs sm:text-sm text-gray-700 border-b pb-2 last:border-b-0"
                                   >
                                     <div className="flex justify-between">
-                                      <span>
+                                      <span className="flex-1">
                                         {item.quantity}x {item.menu_items?.name}
                                       </span>
-                                      <span>
+                                      <span className="font-semibold ml-2 flex-shrink-0">
                                         R${" "}
                                         {(item.price * item.quantity).toFixed(
                                           2,
@@ -593,10 +657,10 @@ export default function EmployeeDashboard() {
                               {(order.payment_method || order.observations) && (
                                 <div className="mt-4 space-y-2">
                                   {order.payment_method && (
-                                    <div className="p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
-                                      <p className="text-sm text-gray-700">
+                                    <div className="p-2 sm:p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
+                                      <p className="text-xs sm:text-sm text-gray-700">
                                         <strong className="text-gray-900">
-                                          Forma de Pagamento:
+                                          Pagamento:
                                         </strong>{" "}
                                         {getPaymentMethodLabel(
                                           order.payment_method,
@@ -605,8 +669,8 @@ export default function EmployeeDashboard() {
                                     </div>
                                   )}
                                   {order.observations && (
-                                    <div className="p-3 bg-gray-50 rounded-lg border-l-4 border-blue-500">
-                                      <p className="text-sm text-gray-700">
+                                    <div className="p-2 sm:p-3 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+                                      <p className="text-xs sm:text-sm text-gray-700 break-words">
                                         <strong className="text-gray-900">
                                           Observação:
                                         </strong>{" "}
@@ -618,6 +682,37 @@ export default function EmployeeDashboard() {
                               )}
                             </div>
                           ))}
+
+                          {/* Total e botão de limpar tudo - apenas se todos os pedidos estiverem finalizados ou cancelados */}
+                          {userOrders.every(
+                            (o) =>
+                              o.status === "completed" ||
+                              o.status === "cancelled",
+                          ) && (
+                            <div className="mt-4 pt-4 border-t-2 border-gray-300 flex flex-col sm:flex-row items-center justify-between gap-3">
+                              <div className="text-left">
+                                <p className="text-sm text-gray-600 mb-1">
+                                  Total Geral da Mesa
+                                </p>
+                                <p className="text-2xl sm:text-3xl font-bold text-gray-900">
+                                  R${" "}
+                                  {userOrders
+                                    .reduce(
+                                      (sum, order) => sum + order.total,
+                                      0,
+                                    )
+                                    .toFixed(2)}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => handleClearAllOrders(username)}
+                                className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition flex items-center justify-center gap-2"
+                              >
+                                <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                Limpar Tudo
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -626,51 +721,51 @@ export default function EmployeeDashboard() {
               })()}
             </div>
           </div>
-        ) : (
-          <div>
-            <h2 className="text-2xl font-bold text-black mb-6">Mesas</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        ) : activeTab === "tables" ? (
+          <div className="space-y-3 sm:space-y-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-black">Mesas</h2>
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
               {allUsers.map((user) => {
                 const isActive = sessionUsers.has(user.username);
                 return (
                   <div
                     key={user.id}
-                    className={`border rounded-lg p-6 ${
+                    className={`border rounded-lg p-4 sm:p-5 transition-all ${
                       isActive
-                        ? "bg-orange-50 border-orange-300"
-                        : "bg-green-50 border-green-300"
+                        ? "bg-gradient-to-br from-orange-50 to-orange-100 border-orange-300 shadow-sm hover:shadow-md"
+                        : "bg-gradient-to-br from-green-50 to-green-100 border-green-300 shadow-sm hover:shadow-md"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-bold text-gray-900">
-                        Mesa {user.username}
-                      </h3>
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                          isActive
-                            ? "bg-orange-500 text-white"
-                            : "bg-green-500 text-white"
-                        }`}
-                      >
-                        {isActive ? "Em uso" : "Disponível"}
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col h-full">
+                      <div className="mb-4">
+                        <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 break-words">
+                          Mesa {user.username}
+                        </h3>
+                        <div
+                          className={`inline-flex px-3 py-1 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap ${
+                            isActive
+                              ? "bg-orange-500 text-white"
+                              : "bg-green-500 text-white"
+                          }`}
+                        >
+                          {isActive ? "🔴 Em uso" : "🟢 Disponível"}
+                        </div>
+                      </div>
                       {isActive ? (
                         <button
                           onClick={() => releaseTable(user.username)}
-                          className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2"
+                          className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2 mt-auto active:scale-95"
                         >
-                          <Unlock className="w-4 h-4" />
-                          Liberar
+                          <Unlock className="w-4 h-4 sm:w-5 sm:h-5" />
+                          <span className="text-sm sm:text-base">Liberar</span>
                         </button>
                       ) : (
                         <button
                           onClick={() => reserveTable(user.username)}
-                          className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2"
+                          className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2 mt-auto active:scale-95"
                         >
-                          <Lock className="w-4 h-4" />
-                          Reservar
+                          <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
+                          <span className="text-sm sm:text-base">Reservar</span>
                         </button>
                       )}
                     </div>
@@ -678,6 +773,61 @@ export default function EmployeeDashboard() {
                 );
               })}
             </div>
+            {allUsers.length === 0 && (
+              <p className="text-sm text-gray-500 text-center py-8">
+                Nenhuma mesa disponível
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3 sm:space-y-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-black flex items-center gap-2">
+              <Bell className="w-6 h-6 sm:w-7 sm:h-7" />
+              Notificações
+            </h2>
+            {waiterCalls.length === 0 ? (
+              <div className="text-center py-12">
+                <Bell className="w-16 h-16 sm:w-20 sm:h-20 mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500 text-base sm:text-lg">
+                  Nenhuma chamada de garçom no momento
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                {waiterCalls.map((call) => (
+                  <div
+                    key={call.id}
+                    className="bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-300 rounded-lg p-4 sm:p-5 shadow-md hover:shadow-lg transition-shadow"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="text-lg sm:text-xl font-bold text-red-900 mb-1">
+                          Mesa {call.table_name}
+                        </h3>
+                        <p className="text-xs sm:text-sm text-red-700">
+                          {new Date(call.created_at).toLocaleTimeString(
+                            "pt-BR",
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 animate-bounce" />
+                      </div>
+                    </div>
+                    <p className="text-sm sm:text-base text-red-800 mb-4 font-semibold">
+                      Está solicitando presença na mesa.
+                    </p>
+                    <button
+                      onClick={() => markCallAsCompleted(call.id)}
+                      className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-2 px-3 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base"
+                    >
+                      <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                      Atendida
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>
