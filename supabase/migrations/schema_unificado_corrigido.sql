@@ -1,5 +1,6 @@
-============================================================
-
+DROP TABLE IF EXISTS waiter_calls CASCADE;
+DROP TABLE IF EXISTS category_order CASCADE;
+DROP TABLE IF EXISTS active_sessions CASCADE;
 DROP TABLE IF EXISTS order_items CASCADE;
 DROP TABLE IF EXISTS orders CASCADE;
 DROP TABLE IF EXISTS menu_items CASCADE;
@@ -8,11 +9,13 @@ DROP TABLE IF EXISTS users CASCADE;
 CREATE TABLE users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   username text UNIQUE NOT NULL,
-  email text UNIQUE NOT NULL,
+  email text UNIQUE,
   phone text NOT NULL,
   password_hash text NOT NULL,
   is_admin boolean DEFAULT false,
   is_employee boolean DEFAULT false,
+  qr_code text UNIQUE,
+  slug text UNIQUE,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -51,18 +54,40 @@ CREATE TABLE order_items (
   created_at timestamptz DEFAULT now()
 );
 
+CREATE TABLE active_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  username text NOT NULL,
+  login_at timestamptz DEFAULT now(),
+  last_activity timestamptz DEFAULT now(),
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id)
+);
 
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE menu_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+CREATE TABLE category_order (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  category text NOT NULL UNIQUE,
+  position integer NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
 
+CREATE TABLE waiter_calls (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  table_name text NOT NULL,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed')),
+  created_at timestamptz DEFAULT now() NOT NULL,
+  completed_at timestamptz,
+  UNIQUE(id)
+);
 
 CREATE INDEX idx_users_is_admin ON users(is_admin);
 CREATE INDEX idx_users_is_employee ON users(is_employee);
 CREATE INDEX idx_users_roles ON users(is_admin, is_employee);
 CREATE INDEX idx_users_username ON users(username);
-
+CREATE INDEX idx_users_qr_code ON users(qr_code);
+CREATE INDEX idx_users_slug ON users(slug);
 
 CREATE INDEX idx_menu_items_category ON menu_items(category);
 CREATE INDEX idx_menu_items_active ON menu_items(active);
@@ -79,139 +104,169 @@ CREATE INDEX idx_orders_assigned_status ON orders(assigned_to, status);
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX idx_order_items_menu_item_id ON order_items(menu_item_id);
 
-DROP POLICY IF EXISTS "Users can read their own data" ON users;
-DROP POLICY IF EXISTS "Admins can read all users" ON users;
-DROP POLICY IF EXISTS "Admins can update users" ON users;
+CREATE INDEX idx_active_sessions_username ON active_sessions(username);
+CREATE INDEX idx_active_sessions_user_id ON active_sessions(user_id);
 
-DROP POLICY IF EXISTS "Anyone can view active menu items" ON menu_items;
-DROP POLICY IF EXISTS "Admins can view all menu items" ON menu_items;
-DROP POLICY IF EXISTS "Admins can insert menu items" ON menu_items;
-DROP POLICY IF EXISTS "Admins can update menu items" ON menu_items;
-DROP POLICY IF EXISTS "Admins can delete menu items" ON menu_items;
+CREATE INDEX idx_category_order_position ON category_order(position);
 
-DROP POLICY IF EXISTS "Users can view their own orders" ON orders;
-DROP POLICY IF EXISTS "Users can create their own orders" ON orders;
-DROP POLICY IF EXISTS "Admins can view all orders" ON orders;
-DROP POLICY IF EXISTS "Admins can update all orders" ON orders;
-DROP POLICY IF EXISTS "Employees can view all orders" ON orders;
-DROP POLICY IF EXISTS "Employees can update order status" ON orders;
+CREATE INDEX waiter_calls_user_id_idx ON waiter_calls(user_id);
+CREATE INDEX waiter_calls_status_idx ON waiter_calls(status);
+CREATE INDEX waiter_calls_created_at_idx ON waiter_calls(created_at DESC);
 
-DROP POLICY IF EXISTS "Users can view items from their orders" ON order_items;
-DROP POLICY IF EXISTS "Users can create items for their orders" ON order_items;
-DROP POLICY IF EXISTS "Admins can view all order items" ON order_items;
-DROP POLICY IF EXISTS "Employees can view all order items" ON order_items;
+CREATE OR REPLACE FUNCTION generate_user_qr_code()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.is_admin = false AND NEW.is_employee = false THEN
+    NEW.qr_code := gen_random_uuid()::text;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-CREATE POLICY "Users can read their own data"
+CREATE TRIGGER trigger_generate_user_qr_code
+BEFORE INSERT ON users
+FOR EACH ROW
+EXECUTE FUNCTION generate_user_qr_code();
+
+CREATE OR REPLACE FUNCTION update_category_order_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_category_order_timestamp
+  BEFORE UPDATE ON category_order
+  FOR EACH ROW
+  EXECUTE FUNCTION update_category_order_timestamp();
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE menu_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE active_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE category_order ENABLE ROW LEVEL SECURITY;
+ALTER TABLE waiter_calls ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public read access to users"
   ON users FOR SELECT
-  TO authenticated
-  USING (id = auth.uid());
+  USING (true);
 
-CREATE POLICY "Admins can read all users"
-  ON users FOR SELECT
-  TO authenticated
-  USING ((SELECT is_admin FROM users WHERE id = auth.uid()) = true);
-
-CREATE POLICY "Admins can insert users"
+CREATE POLICY "Public insert access to users"
   ON users FOR INSERT
-  TO authenticated
-  WITH CHECK ((SELECT is_admin FROM users WHERE id = auth.uid()) = true);
+  WITH CHECK (true);
 
-CREATE POLICY "Admins can update users"
+CREATE POLICY "Public update access to users"
   ON users FOR UPDATE
-  TO authenticated
-  USING ((SELECT is_admin FROM users WHERE id = auth.uid()) = true);
+  USING (true);
 
-CREATE POLICY "Anyone can view active menu items"
+CREATE POLICY "Public delete access to users"
+  ON users FOR DELETE
+  USING (true);
+
+CREATE POLICY "Public read access to menu_items"
   ON menu_items FOR SELECT
-  TO authenticated
-  USING (active = true);
+  USING (true);
 
-CREATE POLICY "Admins can view all menu items"
-  ON menu_items FOR SELECT
-  TO authenticated
-  USING ((SELECT is_admin FROM users WHERE id = auth.uid()) = true);
-
-CREATE POLICY "Admins can insert menu items"
+CREATE POLICY "Public insert access to menu_items"
   ON menu_items FOR INSERT
-  TO authenticated
-  WITH CHECK ((SELECT is_admin FROM users WHERE id = auth.uid()) = true);
+  WITH CHECK (true);
 
-CREATE POLICY "Admins can update menu items"
+CREATE POLICY "Public update access to menu_items"
   ON menu_items FOR UPDATE
-  TO authenticated
-  USING ((SELECT is_admin FROM users WHERE id = auth.uid()) = true);
+  USING (true);
 
-CREATE POLICY "Admins can delete menu items"
+CREATE POLICY "Public delete access to menu_items"
   ON menu_items FOR DELETE
-  TO authenticated
-  USING ((SELECT is_admin FROM users WHERE id = auth.uid()) = true);
+  USING (true);
 
-CREATE POLICY "Users can view their own orders"
+CREATE POLICY "Public read access to orders"
   ON orders FOR SELECT
-  TO authenticated
-  USING (user_id = auth.uid());
+  USING (true);
 
-CREATE POLICY "Users can create their own orders"
+CREATE POLICY "Public insert access to orders"
   ON orders FOR INSERT
-  TO authenticated
-  WITH CHECK (user_id = auth.uid());
+  WITH CHECK (true);
 
-CREATE POLICY "Admins can view all orders"
-  ON orders FOR SELECT
-  TO authenticated
-  USING ((SELECT is_admin FROM users WHERE id = auth.uid()) = true);
-
-CREATE POLICY "Admins can update all orders"
+CREATE POLICY "Public update access to orders"
   ON orders FOR UPDATE
-  TO authenticated
-  USING ((SELECT is_admin FROM users WHERE id = auth.uid()) = true);
+  USING (true);
 
-CREATE POLICY "Employees can view all orders"
-  ON orders FOR SELECT
-  TO authenticated
-  USING (
-    (SELECT is_employee FROM users WHERE id = auth.uid()) = true 
-    AND (SELECT is_admin FROM users WHERE id = auth.uid()) = false
-  );
+CREATE POLICY "Public delete access to orders"
+  ON orders FOR DELETE
+  USING (true);
 
-CREATE POLICY "Employees can update order status"
-  ON orders FOR UPDATE
-  TO authenticated
-  USING (
-    (SELECT is_employee FROM users WHERE id = auth.uid()) = true 
-    AND (SELECT is_admin FROM users WHERE id = auth.uid()) = false
-  );
-
-CREATE POLICY "Users can view items from their orders"
+CREATE POLICY "Public read access to order_items"
   ON order_items FOR SELECT
-  TO authenticated
-  USING (order_id IN (SELECT id FROM orders WHERE user_id = auth.uid()));
+  USING (true);
 
-CREATE POLICY "Users can create items for their orders"
+CREATE POLICY "Public insert access to order_items"
   ON order_items FOR INSERT
-  TO authenticated
-  WITH CHECK (order_id IN (SELECT id FROM orders WHERE user_id = auth.uid()));
+  WITH CHECK (true);
 
-CREATE POLICY "Admins can view all order items"
-  ON order_items FOR SELECT
-  TO authenticated
-  USING ((SELECT is_admin FROM users WHERE id = auth.uid()) = true);
+CREATE POLICY "Public update access to order_items"
+  ON order_items FOR UPDATE
+  USING (true);
 
-CREATE POLICY "Employees can view all order items"
-  ON order_items FOR SELECT
-  TO authenticated
-  USING (
-    (SELECT is_employee FROM users WHERE id = auth.uid()) = true 
-    AND (SELECT is_admin FROM users WHERE id = auth.uid()) = false
-  );
+CREATE POLICY "Public delete access to order_items"
+  ON order_items FOR DELETE
+  USING (true);
 
-INSERT INTO users (username, email, phone, password_hash, is_admin, is_employee)
+CREATE POLICY "Public read access to active_sessions"
+  ON active_sessions FOR SELECT
+  USING (true);
+
+CREATE POLICY "Public insert access to active_sessions"
+  ON active_sessions FOR INSERT
+  WITH CHECK (true);
+
+CREATE POLICY "Public update access to active_sessions"
+  ON active_sessions FOR UPDATE
+  USING (true);
+
+CREATE POLICY "Public delete access to active_sessions"
+  ON active_sessions FOR DELETE
+  USING (true);
+
+CREATE POLICY "Public read access to category_order"
+  ON category_order FOR SELECT
+  USING (true);
+
+CREATE POLICY "Public insert access to category_order"
+  ON category_order FOR INSERT
+  WITH CHECK (true);
+
+CREATE POLICY "Public update access to category_order"
+  ON category_order FOR UPDATE
+  USING (true);
+
+CREATE POLICY "Public delete access to category_order"
+  ON category_order FOR DELETE
+  USING (true);
+
+CREATE POLICY "Public read access to waiter_calls"
+  ON waiter_calls FOR SELECT
+  USING (true);
+
+CREATE POLICY "Public insert access to waiter_calls"
+  ON waiter_calls FOR INSERT
+  WITH CHECK (true);
+
+CREATE POLICY "Public update access to waiter_calls"
+  ON waiter_calls FOR UPDATE
+  USING (true);
+
+CREATE POLICY "Public delete access to waiter_calls"
+  ON waiter_calls FOR DELETE
+  USING (true);
+
+INSERT INTO users (username, email, phone, password_hash, is_admin, is_employee, slug)
 VALUES
-  ('cliente', 'cliente@acardapio.com', '0000000000', '123456', false, false),
-  ('funcionario', 'funcionario@acardapio.com', '0000000000', 'func123', false, true),
-  ('joao', 'joao@acardapio.com', '11999999999', 'joao123', false, true),
-  ('maria', 'maria@acardapio.com', '11999999998', 'maria123', false, true),
-  ('admin', 'admin@acardapio.com', '0000000000', 'admin123', true, false)
+  ('01', '01@cardapio.com', '0000000000', '123456', false, false, '01'),
+  ('funcionario', 'funcionario@cardapio.com', '0000000000', 'func123', false, true, 'funcionario'),
+  ('iagor', 'iagor@cardapio.com', '11999999999', '1234', false, true, 'joao'),
+  ('admin', 'admin@cardapio.com', '0000000000', 'admin123', true, false, 'admin')
 ON CONFLICT (username) DO NOTHING;
 
 INSERT INTO menu_items (name, description, price, image_url, category, active)
@@ -268,3 +323,20 @@ ON CONFLICT (name) DO UPDATE SET
   image_url = EXCLUDED.image_url,
   active = EXCLUDED.active,
   updated_at = now();
+
+UPDATE users SET slug = lower(regexp_replace(username, '[^a-zA-Z0-9]+', '-', 'g')) || '-' || substr(id::text, 1, 8)
+WHERE slug IS NULL;
+
+UPDATE users
+SET qr_code = gen_random_uuid()::text
+WHERE qr_code IS NULL
+  AND is_admin = false
+  AND is_employee = false;
+
+COMMENT ON TABLE users IS 'Usuários do sistema (clientes, funcionários e administradores)';
+COMMENT ON TABLE menu_items IS 'Itens do cardápio disponíveis para pedidos';
+COMMENT ON TABLE orders IS 'Pedidos realizados pelos clientes';
+COMMENT ON TABLE order_items IS 'Itens individuais de cada pedido';
+COMMENT ON TABLE active_sessions IS 'Sessões ativas de usuários (mesas ocupadas)';
+COMMENT ON TABLE category_order IS 'Ordem de exibição das categorias no cardápio';
+COMMENT ON TABLE waiter_calls IS 'Chamadas de garçom feitas pelos clientes';
