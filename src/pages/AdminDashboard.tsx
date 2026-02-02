@@ -977,10 +977,18 @@ export default function AdminDashboard() {
       )
     ) {
       try {
+        // Apagar pedidos
         await supabase
           .from("orders")
           .delete()
           .neq("id", "00000000-0000-0000-0000-000000000000");
+
+        // Apagar notificações de garçom
+        await supabase
+          .from("waiter_calls")
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000");
+
         toast.success("Todos os pedidos foram apagados permanentemente!");
         fetchOrders();
       } catch (error) {
@@ -1044,104 +1052,106 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-black">
-      <header className="bg-white text-black shadow-lg">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Admin</h1>
+      <header className="bg-white text-black shadow-lg sticky top-0 z-40">
+        <div className="w-full px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
+          <h1 className="text-lg sm:text-2xl font-bold">
+            Painel de Administrador
+          </h1>
           <button
             onClick={() => {
               logout();
               navigate("/");
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
+            className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition text-sm sm:text-base"
           >
             <LogOut className="w-4 h-4" />
-            Sair
+            <span className="hidden sm:inline">Sair</span>
           </button>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-2xl overflow-hidden">
-          <div className="border-b">
-            <div className="flex">
+      <div className="w-full px-3 sm:px-4 py-4 sm:py-8">
+        <div className="bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col">
+          <div className="border-b overflow-x-auto">
+            <div className="flex min-w-max sm:min-w-0">
               <button
                 onClick={() => setActiveTab("dashboard")}
-                className={`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 transition ${
+                className={`flex-1 min-w-20 sm:min-w-0 px-2 sm:px-6 py-3 sm:py-4 font-semibold flex items-center justify-center gap-1 sm:gap-2 transition text-xs sm:text-base ${
                   activeTab === "dashboard"
                     ? "bg-black text-white"
                     : "bg-white text-gray-600 hover:bg-gray-100"
                 }`}
               >
-                <BarChart3 className="w-5 h-5" />
-                <span className="max-[480px]:hidden">Dashboard</span>
+                <BarChart3 className="w-4 sm:w-5 h-4 sm:h-5" />
+                <span className="hidden sm:inline">Dashboard</span>
               </button>
               <button
                 onClick={() => setActiveTab("menu")}
-                className={`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 transition ${
+                className={`flex-1 min-w-20 sm:min-w-0 px-2 sm:px-6 py-3 sm:py-4 font-semibold flex items-center justify-center gap-1 sm:gap-2 transition text-xs sm:text-base ${
                   activeTab === "menu"
                     ? "bg-black text-white"
                     : "bg-white text-gray-600 hover:bg-gray-100"
                 }`}
               >
-                <Edit2 className="w-5 h-5" />
-                <span className="max-[480px]:hidden">Editar</span>
+                <Edit2 className="w-4 sm:w-5 h-4 sm:h-5" />
+                <span className="hidden sm:inline">Editar</span>
               </button>
               <button
                 onClick={() => setActiveTab("deactivated")}
-                className={`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 transition ${
+                className={`flex-1 min-w-20 sm:min-w-0 px-2 sm:px-6 py-3 sm:py-4 font-semibold flex items-center justify-center gap-1 sm:gap-2 transition text-xs sm:text-base ${
                   activeTab === "deactivated"
                     ? "bg-black text-white"
                     : "bg-white text-gray-600 hover:bg-gray-100"
                 }`}
               >
-                <X className="w-5 h-5" />
-                <span className="max-[480px]:hidden">Desativados</span>
+                <X className="w-4 sm:w-5 h-4 sm:h-5" />
+                <span className="hidden sm:inline">Desativados</span>
               </button>
               <button
                 onClick={() => setActiveTab("orders")}
-                className={`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 transition ${
+                className={`flex-1 min-w-20 sm:min-w-0 px-2 sm:px-6 py-3 sm:py-4 font-semibold flex items-center justify-center gap-1 sm:gap-2 transition text-xs sm:text-base ${
                   activeTab === "orders"
                     ? "bg-black text-white"
                     : "bg-white text-gray-600 hover:bg-gray-100"
                 }`}
               >
-                <ShoppingBag className="w-5 h-5" />
-                <span className="max-[480px]:hidden">Pedidos</span>
+                <ShoppingBag className="w-4 sm:w-5 h-4 sm:h-5" />
+                <span className="hidden sm:inline">Pedidos</span>
               </button>
               <button
                 onClick={() => setActiveTab("users")}
-                className={`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 transition ${
+                className={`flex-1 min-w-20 sm:min-w-0 px-2 sm:px-6 py-3 sm:py-4 font-semibold flex items-center justify-center gap-1 sm:gap-2 transition text-xs sm:text-base ${
                   activeTab === "users"
                     ? "bg-black text-white"
                     : "bg-white text-gray-600 hover:bg-gray-100"
                 }`}
               >
-                <Users className="w-5 h-5" />
-                <span className="max-[480px]:hidden">Usuários</span>
+                <Users className="w-4 sm:w-5 h-4 sm:h-5" />
+                <span className="hidden sm:inline">Usuários</span>
               </button>
               <button
                 onClick={() => setActiveTab("performance")}
-                className={`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 transition ${
+                className={`flex-1 min-w-20 sm:min-w-0 px-2 sm:px-6 py-3 sm:py-4 font-semibold flex items-center justify-center gap-1 sm:gap-2 transition text-xs sm:text-base ${
                   activeTab === "performance"
                     ? "bg-black text-white"
                     : "bg-white text-gray-600 hover:bg-gray-100"
                 }`}
               >
-                <BarChart3 className="w-5 h-5" />
-                <span className="max-[480px]:hidden">Performance</span>
+                <BarChart3 className="w-4 sm:w-5 h-4 sm:h-5" />
+                <span className="hidden sm:inline">Performance</span>
               </button>
             </div>
           </div>
 
-          <div className="p-6">
+          <div className="p-3 sm:p-6 overflow-y-auto flex-1">
             {activeTab === "deactivated" && (
               <div>
-                <h2 className="text-2xl font-bold text-black mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-black mb-4 sm:mb-6">
                   Itens Desativados
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
                   {menuItems.filter((item) => !item.active).length === 0 ? (
-                    <p className="text-gray-500 col-span-full">
+                    <p className="text-gray-500 col-span-full text-sm">
                       Nenhum item desativado.
                     </p>
                   ) : (
@@ -1157,32 +1167,32 @@ export default function AdminDashboard() {
                             alt={item.name}
                             className="w-full aspect-square object-cover"
                           />
-                          <div className="p-3">
-                            <h3 className="font-bold text-base mb-1 text-black">
+                          <div className="p-2 sm:p-3">
+                            <h3 className="font-bold text-xs sm:text-base mb-1 text-black line-clamp-2">
                               {item.name}
                             </h3>
                             <p className="text-xs text-gray-500 mb-1 uppercase font-semibold">
                               {item.category}
                             </p>
                             <p
-                              className="text-gray-600 text-sm mb-2"
+                              className="text-gray-600 text-xs line-clamp-2"
                               style={{
-                                minHeight: "5.5em",
-                                lineHeight: "1.375em",
                                 overflow: "hidden",
-                                display: "block",
+                                display: "-webkit-box",
+                                WebkitBoxOrient: "vertical",
+                                WebkitLineClamp: 2,
                               }}
                             >
                               {item.description}
                             </p>
-                            <p className="text-lg font-bold text-black mb-3">
+                            <p className="text-sm sm:text-lg font-bold text-black mb-2 mt-1">
                               R$ {item.price.toFixed(2)}
                             </p>
                             <button
                               onClick={() =>
                                 handleToggleActive(item.id, item.active)
                               }
-                              className="w-full px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-base font-bold"
+                              className="w-full px-2 sm:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-xs sm:text-base font-bold"
                             >
                               Ativar Item
                             </button>
@@ -1195,19 +1205,19 @@ export default function AdminDashboard() {
             )}
             {activeTab === "dashboard" && (
               <div>
-                <h2 className="text-2xl font-bold text-black mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-black mb-4 sm:mb-6">
                   Dashboard
                 </h2>
 
                 {/* Cards de estatísticas */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                  <div className="bg-gray-50 p-6 rounded-lg border">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+                  <div className="bg-gray-50 p-3 sm:p-6 rounded-lg border">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-600">
+                        <p className="text-xs sm:text-sm font-medium text-gray-600">
                           Pedidos Hoje
                         </p>
-                        <p className="text-2xl font-bold text-gray-900">
+                        <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-1">
                           {
                             orders.filter((order) => {
                               const today = new Date().toDateString();
@@ -1222,17 +1232,17 @@ export default function AdminDashboard() {
                           }
                         </p>
                       </div>
-                      <ShoppingBag className="w-8 h-8 text-blue-600" />
+                      <ShoppingBag className="w-6 sm:w-8 h-6 sm:h-8 text-blue-600" />
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 p-6 rounded-lg border">
+                  <div className="bg-gray-50 p-3 sm:p-6 rounded-lg border">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-600">
+                        <p className="text-xs sm:text-sm font-medium text-gray-600">
                           Receita Hoje
                         </p>
-                        <p className="text-2xl font-bold text-gray-900">
+                        <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-1">
                           R${" "}
                           {orders
                             .filter((order) => {
@@ -1249,53 +1259,53 @@ export default function AdminDashboard() {
                             .toFixed(2)}
                         </p>
                       </div>
-                      <BarChart3 className="w-8 h-8 text-green-600" />
+                      <BarChart3 className="w-6 sm:w-8 h-6 sm:h-8 text-green-600" />
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 p-6 rounded-lg border">
+                  <div className="bg-gray-50 p-3 sm:p-6 rounded-lg border">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-600">
+                        <p className="text-xs sm:text-sm font-medium text-gray-600">
                           Usuários
                         </p>
-                        <p className="text-2xl font-bold text-gray-900">
+                        <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-1">
                           {users.length}
                         </p>
                       </div>
-                      <Users className="w-8 h-8 text-purple-600" />
+                      <Users className="w-6 sm:w-8 h-6 sm:h-8 text-purple-600" />
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 p-6 rounded-lg border">
+                  <div className="bg-gray-50 p-3 sm:p-6 rounded-lg border">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-600">
-                          Itens no Cardápio
+                        <p className="text-xs sm:text-sm font-medium text-gray-600">
+                          Cardápio
                         </p>
-                        <p className="text-2xl font-bold text-gray-900">
+                        <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-1">
                           {menuItems.length}
                         </p>
                       </div>
-                      <Edit2 className="w-8 h-8 text-orange-600" />
+                      <Edit2 className="w-6 sm:w-8 h-6 sm:h-8 text-orange-600" />
                     </div>
                   </div>
                 </div>
 
-                {/* Status dos pedidos */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                  <div className="bg-gray-50 p-6 rounded-lg border">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                {/* Status dos pedidos - Responsivo */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+                  <div className="bg-gray-50 p-4 sm:p-6 rounded-lg border">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
                       Status dos Pedidos
                     </h3>
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {/* Pipeline de pedidos */}
-                      <div className="border-l-4 border-yellow-400 pl-4">
+                      <div className="border-l-4 border-yellow-400 pl-3">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-xs sm:text-sm font-medium text-gray-700">
                             Em Fila
                           </span>
-                          <span className="text-lg font-bold text-yellow-600">
+                          <span className="text-base sm:text-lg font-bold text-yellow-600">
                             {
                               orders
                                 .filter((order) => !order.hidden)
@@ -1309,12 +1319,12 @@ export default function AdminDashboard() {
                         </p>
                       </div>
 
-                      <div className="border-l-4 border-blue-400 pl-4">
+                      <div className="border-l-4 border-blue-400 pl-3">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-xs sm:text-sm font-medium text-gray-700">
                             Em Preparo
                           </span>
-                          <span className="text-lg font-bold text-blue-600">
+                          <span className="text-base sm:text-lg font-bold text-blue-600">
                             {
                               orders
                                 .filter((order) => !order.hidden)
@@ -1326,12 +1336,12 @@ export default function AdminDashboard() {
                         <p className="text-xs text-gray-500">Sendo preparado</p>
                       </div>
 
-                      <div className="border-l-4 border-green-400 pl-4">
+                      <div className="border-l-4 border-green-400 pl-3">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-xs sm:text-sm font-medium text-gray-700">
                             Pronto
                           </span>
-                          <span className="text-lg font-bold text-green-600">
+                          <span className="text-base sm:text-lg font-bold text-green-600">
                             {
                               orders
                                 .filter((order) => !order.hidden)
@@ -1345,12 +1355,12 @@ export default function AdminDashboard() {
                         </p>
                       </div>
 
-                      <div className="border-l-4 border-gray-400 pl-4">
+                      <div className="border-l-4 border-gray-400 pl-3">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-xs sm:text-sm font-medium text-gray-700">
                             Finalizado
                           </span>
-                          <span className="text-lg font-bold text-gray-600">
+                          <span className="text-base sm:text-lg font-bold text-gray-600">
                             {
                               orders.filter(
                                 (order) => order.status === "completed",
@@ -1363,12 +1373,12 @@ export default function AdminDashboard() {
                         </p>
                       </div>
 
-                      <div className="border-l-4 border-red-400 pl-4">
+                      <div className="border-l-4 border-red-400 pl-3">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-xs sm:text-sm font-medium text-gray-700">
                             Cancelado
                           </span>
-                          <span className="text-lg font-bold text-red-600">
+                          <span className="text-base sm:text-lg font-bold text-red-600">
                             {
                               orders.filter(
                                 (order) => order.status === "cancelled",
@@ -1382,12 +1392,12 @@ export default function AdminDashboard() {
                       </div>
 
                       {/* Resumo do pipeline */}
-                      <div className="mt-6 pt-4 border-t border-gray-200">
-                        <div className="flex justify-between items-center mb-4">
-                          <span className="text-sm font-medium text-gray-700">
+                      <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-gray-200">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-xs sm:text-sm font-medium text-gray-700">
                             Total em Andamento
                           </span>
-                          <span className="text-lg font-bold text-purple-600">
+                          <span className="text-base sm:text-lg font-bold text-purple-600">
                             {
                               orders
                                 .filter((order) => !order.hidden)
@@ -1407,8 +1417,8 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 p-6 rounded-lg border">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  <div className="bg-gray-50 p-4 sm:p-6 rounded-lg border">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
                       Itens Mais Vendidos (Hoje)
                     </h3>
                     <div className="space-y-3">
@@ -1448,18 +1458,18 @@ export default function AdminDashboard() {
                           sortedItems.map((item) => (
                             <div
                               key={item.name}
-                              className="flex justify-between items-center"
+                              className="flex justify-between items-center text-xs sm:text-sm"
                             >
-                              <span className="text-sm text-gray-600">
+                              <span className="text-gray-600 line-clamp-1">
                                 {item.name}
                               </span>
-                              <span className="font-semibold text-gray-900">
+                              <span className="font-semibold text-gray-900 ml-2">
                                 {item.count}x
                               </span>
                             </div>
                           ))
                         ) : (
-                          <p className="text-sm text-gray-500">
+                          <p className="text-xs sm:text-sm text-gray-500">
                             Nenhum pedido hoje
                           </p>
                         );
@@ -1469,35 +1479,43 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Pedidos recentes */}
-                <div className="bg-gray-50 p-6 rounded-lg border">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                <div className="bg-gray-50 p-4 sm:p-6 rounded-lg border mb-4 sm:mb-8">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
                     Pedidos Recentes
                   </h3>
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {(showAllRecentOrders ? orders : orders.slice(0, 3)).map(
                       (order) => (
                         <div
                           key={order.id}
-                          className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0"
+                          className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-2 border-b border-gray-200 last:border-b-0 gap-2"
                         >
-                          <div>
-                            <p className="font-medium text-gray-900">
+                          <div className="flex-1">
+                            <p className="font-medium text-xs sm:text-base text-gray-900 line-clamp-1">
                               Pedido da Mesa{" "}
                               {order.users?.username || "Cliente"} •{" "}
-                              {new Date(order.created_at).toLocaleString(
-                                "pt-BR",
-                              )}
+                              <span className="text-gray-600">
+                                {new Date(order.created_at).toLocaleString(
+                                  "pt-BR",
+                                  {
+                                    month: "2-digit",
+                                    day: "2-digit",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}
+                              </span>
                             </p>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-xs text-gray-600">
                               Pedido #{formatOrderNumericId(order.id)}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-semibold text-gray-900">
+                            <p className="font-semibold text-sm sm:text-base text-gray-900">
                               R$ {order.total.toFixed(2)}
                             </p>
                             <p
-                              className={`text-xs px-2 py-1 rounded-full ${
+                              className={`text-xs px-2 py-1 rounded-full w-fit ml-auto ${
                                 order.status === "pending"
                                   ? "bg-yellow-100 text-yellow-800"
                                   : order.status === "preparing"
@@ -1524,18 +1542,18 @@ export default function AdminDashboard() {
                       ),
                     )}
                     {orders.length === 0 && (
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs sm:text-sm text-gray-500">
                         Nenhum pedido recente.
                       </p>
                     )}
                   </div>
                   {orders.length > 3 && (
-                    <div className="mt-4 pt-4 border-t">
+                    <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t">
                       <button
                         onClick={() =>
                           setShowAllRecentOrders(!showAllRecentOrders)
                         }
-                        className="w-full bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition font-medium"
+                        className="w-full bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition font-medium text-sm sm:text-base"
                       >
                         {showAllRecentOrders ? "Ver menos" : "Ver todos"}
                       </button>
@@ -1544,13 +1562,13 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Botão de gerar relatório */}
-                <div className="bg-blue-50 p-6 rounded-lg border border-blue-200 mt-8">
-                  <div className="flex items-center justify-between">
+                <div className="bg-blue-50 p-4 sm:p-6 rounded-lg border border-blue-200 mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-blue-900 mb-2">
+                      <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-1 sm:mb-2">
                         📊 Gerar Relatório Diário
                       </h3>
-                      <p className="text-sm text-blue-700">
+                      <p className="text-xs sm:text-sm text-blue-700">
                         Gera um relatório em PDF com todas as informações
                         diárias, incluindo pedidos, faturamento, formas de
                         pagamento e performance.
@@ -1559,7 +1577,7 @@ export default function AdminDashboard() {
                     <button
                       onClick={generateDailyReport}
                       disabled={generatingReport}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition font-semibold"
+                      className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition font-semibold text-sm sm:text-base whitespace-nowrap"
                     >
                       {generatingReport ? "Gerando..." : "Gerar PDF"}
                     </button>
@@ -1567,22 +1585,22 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Botão de limpar dados */}
-                <div className="bg-red-50 p-6 rounded-lg border border-red-200 mt-8">
-                  <div className="flex items-center justify-between">
+                <div className="bg-red-50 p-4 sm:p-6 rounded-lg border border-red-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-red-900 mb-2">
+                      <h3 className="text-base sm:text-lg font-semibold text-red-900 mb-1 sm:mb-2">
                         ⚠️ Limpar Dados
                       </h3>
-                      <p className="text-sm text-red-700">
+                      <p className="text-xs sm:text-sm text-red-700">
                         Apaga permanentemente todos os pedidos do banco de
                         dados. Esta ação não pode ser desfeita.
                       </p>
                     </div>
                     <button
                       onClick={handleClearData}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-semibold"
+                      className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-semibold text-sm sm:text-base whitespace-nowrap"
                     >
-                      Limpar Todos os Dados
+                      Limpar Dados
                     </button>
                   </div>
                 </div>
@@ -1591,16 +1609,16 @@ export default function AdminDashboard() {
 
             {activeTab === "menu" && (
               <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-black">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-black">
                     Gerenciar Cardápio
                   </h2>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <button
                       onClick={handleOpenCategoryReorder}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                      className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-xs sm:text-sm"
                     >
-                      📊 Reordenar Categorias
+                      📊 Reordenar
                     </button>
                     <button
                       onClick={() => {
@@ -1615,7 +1633,7 @@ export default function AdminDashboard() {
                         });
                         setShowMenuModal(true);
                       }}
-                      className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
+                      className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition text-xs sm:text-sm"
                     >
                       <Plus className="w-4 h-4" />
                       Adicionar Item
@@ -1650,41 +1668,43 @@ export default function AdminDashboard() {
                   return orderedCategoryKeys.map((category) => {
                     const items = groupedItems[category];
                     return (
-                      <div key={category} className="mb-8">
-                        <h3 className="text-xl font-bold text-black mb-4 border-b pb-2">
+                      <div key={category} className="mb-6 sm:mb-8">
+                        <h3 className="text-lg sm:text-xl font-bold text-black mb-3 sm:mb-4 border-b pb-2">
                           {category.replace(/\b\w/g, (l) => l.toUpperCase())}
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
                           {items.map((item) => (
                             <div
                               key={item.id}
-                              className="border rounded-lg overflow-hidden"
+                              className="border rounded-lg overflow-hidden flex flex-col"
                             >
                               <img
                                 src={item.image_url}
                                 alt={item.name}
                                 className="w-full aspect-square object-cover"
                               />
-                              <div className="p-3">
-                                <h3 className="font-bold text-base mb-1 text-black">
+                              <div className="p-2 sm:p-3 flex-1 flex flex-col">
+                                <h3 className="font-bold text-xs sm:text-base mb-1 text-black line-clamp-2">
                                   {item.name}
                                 </h3>
                                 <p className="text-xs text-gray-500 mb-1 uppercase font-semibold">
                                   {item.category}
                                 </p>
-                                <p className="text-gray-600 text-sm mb-2">
+                                <p className="text-gray-600 text-xs line-clamp-2 mb-2 flex-1">
                                   {item.description}
                                 </p>
-                                <p className="text-lg font-bold text-black mb-3">
+                                <p className="text-sm sm:text-lg font-bold text-black mb-2">
                                   R$ {item.price.toFixed(2)}
                                 </p>
-                                <div className="flex gap-1">
+                                <div className="flex gap-1 flex-col sm:flex-row">
                                   <button
                                     onClick={() => handleEditItem(item)}
-                                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1 bg-gray-100 text-black rounded hover:bg-gray-200 transition text-sm"
+                                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1 bg-gray-100 text-black rounded hover:bg-gray-200 transition text-xs"
                                   >
                                     <Edit2 className="w-3 h-3" />
-                                    Editar
+                                    <span className="hidden sm:inline">
+                                      Editar
+                                    </span>
                                   </button>
                                   <button
                                     onClick={() =>
@@ -1714,8 +1734,10 @@ export default function AdminDashboard() {
 
             {activeTab === "orders" && (
               <div>
-                <h2 className="text-2xl font-bold text-black mb-6">Pedidos</h2>
-                <div className="space-y-4">
+                <h2 className="text-xl sm:text-2xl font-bold text-black mb-4 sm:mb-6">
+                  Pedidos
+                </h2>
+                <div className="space-y-3 sm:space-y-4">
                   {(() => {
                     const ordersByUser = orders
                       .filter((order) => !order.hidden)
@@ -1730,7 +1752,7 @@ export default function AdminDashboard() {
                       );
 
                     return Object.keys(ordersByUser).length === 0 ? (
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs sm:text-sm text-gray-500">
                         Não há pedidos no momento
                       </p>
                     ) : (
@@ -1742,82 +1764,88 @@ export default function AdminDashboard() {
                           >
                             <button
                               onClick={() => toggleUserAccordion(username)}
-                              className="w-full text-left p-4 font-bold text-lg text-black hover:bg-gray-100 transition flex items-center justify-between"
+                              className="w-full text-left p-3 sm:p-4 font-bold text-base sm:text-lg text-black hover:bg-gray-100 transition flex items-center justify-between"
                             >
-                              <span className="flex items-center gap-2">
-                                Pedidos da Mesa {username}
+                              <span className="flex items-center gap-2 flex-1 min-w-0">
+                                <span className="truncate">
+                                  Pedidos da Mesa {username}
+                                </span>
                                 {userOrders.some(
                                   (o) => o.status === "pending",
                                 ) && (
-                                  <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                                  <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap">
                                     Novo
                                   </span>
                                 )}
                                 {userOrders.every(
                                   (o) => o.status === "cancelled",
                                 ) && (
-                                  <span className="bg-gray-500 text-white text-xs px-2 py-1 rounded-full">
+                                  <span className="bg-gray-500 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap">
                                     Cancelado
                                   </span>
                                 )}
                               </span>
                               <ChevronDown
-                                className={`w-5 h-5 transition-transform ${expandedUsers.has(username) ? "rotate-180" : ""}`}
+                                className={`w-5 h-5 transition-transform flex-shrink-0 ml-2 ${expandedUsers.has(username) ? "rotate-180" : ""}`}
                               />
                             </button>
                             {expandedUsers.has(username) && (
-                              <div className="p-4 space-y-4">
+                              <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
                                 {userOrders.map((order) => (
                                   <div
                                     key={order.id}
-                                    className="border rounded-lg p-4 bg-white"
+                                    className="border rounded-lg p-3 sm:p-4 bg-white text-sm sm:text-base"
                                   >
-                                    <div className="flex justify-between items-start mb-4">
-                                      <div>
-                                        <div className="flex items-center gap-3 mb-2">
-                                          <h3 className="font-bold text-lg text-black">
+                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-3 mb-3 sm:mb-4">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                          <h3 className="font-bold text-sm sm:text-lg text-black">
                                             Pedido da Mesa{" "}
                                             {order.users?.username || "Cliente"}
                                           </h3>
                                           {order.assigned_employee && (
-                                            <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-semibold">
-                                              Atendido por:{" "}
+                                            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-semibold whitespace-nowrap">
                                               {order.assigned_employee.username}
                                             </span>
                                           )}
                                         </div>
-                                        <p className="text-gray-600">
+                                        <p className="text-xs sm:text-sm text-gray-600">
                                           Pedido #
                                           {formatOrderNumericId(order.id)}
                                         </p>
-                                        <p className="text-gray-600">
+                                        <p className="text-xs sm:text-sm text-gray-600">
                                           {new Date(
                                             order.created_at,
-                                          ).toLocaleString("pt-BR")}
+                                          ).toLocaleString("pt-BR", {
+                                            month: "2-digit",
+                                            day: "2-digit",
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                          })}
                                         </p>
                                       </div>
-                                      <div className="text-right">
-                                        <p className="text-2xl font-bold text-black">
+                                      <div className="text-right sm:text-right">
+                                        <p className="text-base sm:text-2xl font-bold text-black">
                                           R$ {order.total.toFixed(2)}
                                         </p>
                                         {order.status === "pending" && (
-                                          <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-lg text-sm">
+                                          <span className="px-2 sm:px-3 py-1 bg-yellow-100 text-yellow-800 rounded-lg text-xs inline-block">
                                             Aguardando
                                           </span>
                                         )}
                                         {order.status === "preparing" && (
-                                          <span className="px-3 py-1 bg-gray-500 text-white rounded-lg text-sm">
+                                          <span className="px-2 sm:px-3 py-1 bg-gray-500 text-white rounded-lg text-xs inline-block">
                                             Preparando
                                           </span>
                                         )}
                                         {order.status === "ready" && (
-                                          <span className="px-3 py-1 bg-gray-500 text-white rounded-lg text-sm">
+                                          <span className="px-2 sm:px-3 py-1 bg-gray-500 text-white rounded-lg text-xs inline-block">
                                             Pronto
                                           </span>
                                         )}
                                         {order.status === "completed" && (
-                                          <div className="mt-2 flex items-center gap-2">
-                                            <span className="px-3 py-1 bg-gray-500 text-white rounded-lg text-sm">
+                                          <div className="mt-1 sm:mt-2 flex items-center gap-1 sm:gap-2 justify-end">
+                                            <span className="px-2 sm:px-3 py-1 bg-gray-500 text-white rounded-lg text-xs">
                                               Finalizado
                                             </span>
                                             <button
@@ -1827,13 +1855,13 @@ export default function AdminDashboard() {
                                               className="p-1 bg-red-500 text-white rounded hover:bg-red-600 transition"
                                               title="Ocultar pedido"
                                             >
-                                              <Trash2 className="w-4 h-4" />
+                                              <Trash2 className="w-3 h-3" />
                                             </button>
                                           </div>
                                         )}
                                         {order.status === "cancelled" && (
-                                          <div className="mt-2 flex items-center gap-2">
-                                            <span className="px-3 py-1 bg-red-500 text-white rounded-lg text-sm">
+                                          <div className="mt-1 sm:mt-2 flex items-center gap-1 sm:gap-2 justify-end">
+                                            <span className="px-2 sm:px-3 py-1 bg-red-500 text-white rounded-lg text-xs">
                                               Cancelado
                                             </span>
                                             <button
@@ -1843,17 +1871,17 @@ export default function AdminDashboard() {
                                               className="p-1 bg-red-500 text-white rounded hover:bg-red-600 transition"
                                               title="Ocultar pedido"
                                             >
-                                              <Trash2 className="w-4 h-4" />
+                                              <Trash2 className="w-3 h-3" />
                                             </button>
                                           </div>
                                         )}
                                       </div>
                                     </div>
-                                    <div className="space-y-2">
+                                    <div className="space-y-1 text-xs sm:text-sm">
                                       {order.order_items?.map((item) => (
                                         <div
                                           key={item.id}
-                                          className="text-sm text-gray-700"
+                                          className="text-gray-700"
                                         >
                                           <div className="flex justify-between">
                                             <span>
@@ -1874,12 +1902,12 @@ export default function AdminDashboard() {
                                     {/* Informações adicionais do pedido */}
                                     {(order.payment_method ||
                                       order.observations) && (
-                                      <div className="mt-4 space-y-2">
+                                      <div className="mt-3 sm:mt-4 space-y-2">
                                         {order.payment_method && (
-                                          <div className="p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
-                                            <p className="text-sm text-gray-700">
+                                          <div className="p-2 sm:p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
+                                            <p className="text-xs sm:text-sm text-gray-700">
                                               <strong className="text-gray-900">
-                                                Forma de Pagamento:
+                                                Pagamento:
                                               </strong>{" "}
                                               {getPaymentMethodLabel(
                                                 order.payment_method,
@@ -1888,10 +1916,10 @@ export default function AdminDashboard() {
                                           </div>
                                         )}
                                         {order.observations && (
-                                          <div className="p-3 bg-gray-50 rounded-lg border-l-4 border-blue-500">
-                                            <p className="text-sm text-gray-700">
+                                          <div className="p-2 sm:p-3 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+                                            <p className="text-xs sm:text-sm text-gray-700">
                                               <strong className="text-gray-900">
-                                                Observação:
+                                                Obs:
                                               </strong>{" "}
                                               {order.observations}
                                             </p>
@@ -1914,17 +1942,19 @@ export default function AdminDashboard() {
 
             {activeTab === "users" && (
               <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-black">Usuários</h2>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-black">
+                    Usuários
+                  </h2>
                   <button
                     onClick={() => setShowUserModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
+                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition text-xs sm:text-sm w-full sm:w-auto"
                   >
                     <Plus className="w-4 h-4" />
                     Adicionar Usuário
                   </button>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {(() => {
                     const usersByType = users.reduce(
                       (acc, user) => {
@@ -1954,7 +1984,7 @@ export default function AdminDashboard() {
                         >
                           <button
                             onClick={() => toggleUserAccordion(type)}
-                            className="w-full text-left p-4 font-bold text-lg text-black hover:bg-gray-100 transition flex items-center justify-between"
+                            className="w-full text-left p-3 sm:p-4 font-bold text-base sm:text-lg text-black hover:bg-gray-100 transition flex items-center justify-between"
                           >
                             <span className="flex items-center gap-2">
                               {type}
@@ -1967,44 +1997,52 @@ export default function AdminDashboard() {
                             />
                           </button>
                           {expandedUsers.has(type) && (
-                            <div className="p-4">
+                            <div className="p-3 sm:p-4">
                               <div className="overflow-x-auto">
-                                <table className="w-full">
+                                <table className="w-full text-xs sm:text-sm">
                                   <thead className="bg-gray-100">
                                     <tr>
-                                      <th className="px-4 py-3 text-left text-black">
+                                      <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-black">
                                         Usuário
                                       </th>
-                                      <th className="px-4 py-3 text-left text-black">
+                                      <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-black hidden sm:table-cell">
                                         Telefone
                                       </th>
                                       {type !== "Cliente" && (
                                         <>
-                                          <th className="px-4 py-3 text-left text-black">
+                                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-black hidden md:table-cell">
                                             Admin
                                           </th>
-                                          <th className="px-4 py-3 text-left text-black">
-                                            Funcionário
+                                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-black hidden md:table-cell">
+                                            Func
                                           </th>
                                         </>
                                       )}
-                                      <th className="px-4 py-3 text-center text-black">
+                                      <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-black">
                                         Ações
                                       </th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {typeUsers.map((user) => (
-                                      <tr key={user.id} className="border-b">
-                                        <td className="px-4 py-3 text-black">
-                                          {user.username}
+                                      <tr
+                                        key={user.id}
+                                        className="border-b hover:bg-gray-100"
+                                      >
+                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-black text-xs sm:text-sm">
+                                          <div className="truncate">
+                                            {user.username}
+                                          </div>
+                                          <div className="text-gray-600 text-xs sm:hidden">
+                                            {user.phone || "-"}
+                                          </div>
                                         </td>
-                                        <td className="px-4 py-3 text-gray-600">
+                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-600 hidden sm:table-cell">
                                           {user.phone || "-"}
                                         </td>
                                         {type !== "Cliente" && (
                                           <>
-                                            <td className="px-4 py-3">
+                                            <td className="px-2 sm:px-4 py-2 sm:py-3 hidden md:table-cell">
                                               <span
                                                 className={`px-2 py-1 rounded text-xs font-semibold ${
                                                   user.is_admin
@@ -2015,7 +2053,7 @@ export default function AdminDashboard() {
                                                 {user.is_admin ? "Sim" : "Não"}
                                               </span>
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-2 sm:px-4 py-2 sm:py-3 hidden md:table-cell">
                                               <span
                                                 className={`px-2 py-1 rounded text-xs font-semibold ${
                                                   user.is_employee
@@ -2030,8 +2068,8 @@ export default function AdminDashboard() {
                                             </td>
                                           </>
                                         )}
-                                        <td className="px-4 py-3">
-                                          <div className="flex gap-2 justify-center flex-wrap">
+                                        <td className="px-2 sm:px-4 py-2 sm:py-3">
+                                          <div className="flex gap-1 justify-center flex-wrap">
                                             {type === "Cliente" ? (
                                               <>
                                                 <button
@@ -2041,10 +2079,10 @@ export default function AdminDashboard() {
                                                       !!user.is_employee,
                                                     )
                                                   }
-                                                  className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm"
+                                                  className="px-2 sm:px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-xs"
                                                   title="Gerenciar permissão de funcionário"
                                                 >
-                                                  Tornar Func
+                                                  Func
                                                 </button>
                                                 <button
                                                   onClick={() =>
@@ -2053,10 +2091,10 @@ export default function AdminDashboard() {
                                                       user.is_admin,
                                                     )
                                                   }
-                                                  className="px-3 py-1 bg-black text-white rounded hover:bg-gray-800 transition text-sm"
+                                                  className="px-2 sm:px-3 py-1 bg-black text-white rounded hover:bg-gray-800 transition text-xs"
                                                   title="Gerenciar permissão de admin"
                                                 >
-                                                  Tornar Admin
+                                                  Admin
                                                 </button>
                                               </>
                                             ) : (
@@ -2068,12 +2106,12 @@ export default function AdminDashboard() {
                                                       user.is_admin,
                                                     )
                                                   }
-                                                  className="px-3 py-1 bg-black text-white rounded hover:bg-gray-800 transition text-sm flex-1 min-w-24 justify-center"
+                                                  className="px-2 sm:px-3 py-1 bg-black text-white rounded hover:bg-gray-800 transition text-xs flex-1 min-w-20"
                                                   title="Gerenciar permissão de admin"
                                                 >
                                                   {user.is_admin
-                                                    ? "Remover Admin"
-                                                    : "Tornar Admin"}
+                                                    ? "Rem Ad"
+                                                    : "Tor Ad"}
                                                 </button>
                                                 <button
                                                   onClick={() =>
@@ -2082,12 +2120,12 @@ export default function AdminDashboard() {
                                                       !!user.is_employee,
                                                     )
                                                   }
-                                                  className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm flex-1 min-w-24 justify-center"
+                                                  className="px-2 sm:px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-xs flex-1 min-w-20"
                                                   title="Gerenciar permissão de funcionário"
                                                 >
                                                   {user.is_employee
-                                                    ? "Remover Func"
-                                                    : "Tornar Func"}
+                                                    ? "Rem Fc"
+                                                    : "Tor Fc"}
                                                 </button>
                                               </>
                                             )}
@@ -2095,10 +2133,9 @@ export default function AdminDashboard() {
                                               onClick={() =>
                                                 handleDeleteUser(user.id)
                                               }
-                                              className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition text-sm flex items-center gap-1"
+                                              className="px-2 sm:px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition text-xs"
                                             >
-                                              <Trash2 className="w-3 h-3" />
-                                              Remover
+                                              <Trash2 className="w-3 h-3 inline" />
                                             </button>
                                           </div>
                                         </td>
@@ -2118,91 +2155,97 @@ export default function AdminDashboard() {
 
             {activeTab === "performance" && (
               <div>
-                <h2 className="text-2xl font-bold text-black mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-black mb-4 sm:mb-6">
                   Performance dos Funcionários
                 </h2>
                 {employeePerformance.length === 0 ? (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-xs sm:text-sm text-gray-500">
                     Nenhum funcionário encontrado ou sem dados de performance
                   </p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-black">
-                            Funcionário
-                          </th>
-                          <th className="px-4 py-3 text-center text-black">
-                            Pedidos Finalizados
-                          </th>
-                          <th className="px-4 py-3 text-center text-black">
-                            Pedidos Cancelados
-                          </th>
-                          <th className="px-4 py-3 text-center text-black">
-                            Renda Total
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {employeePerformance.map((emp) => (
-                          <tr
-                            key={emp.userId}
-                            className="border-b hover:bg-gray-50"
-                          >
-                            <td className="px-4 py-3 text-black font-semibold">
-                              {emp.username}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
-                                {emp.completedOrders}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span
-                                onClick={() =>
-                                  handleViewCancelledOrders(emp.userId)
-                                }
-                                className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-semibold cursor-pointer hover:bg-red-200 transition"
-                              >
-                                {emp.cancelledOrders}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-center text-black font-bold text-lg">
-                              R$ {emp.totalRevenue.toFixed(2)}
-                            </td>
+                  <>
+                    <div className="overflow-x-auto mb-6">
+                      <table className="w-full text-xs sm:text-sm">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-black">
+                              Funcionário
+                            </th>
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-black">
+                              Finalizados
+                            </th>
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-black">
+                              Cancelados
+                            </th>
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-black">
+                              Renda
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {employeePerformance.map((emp) => (
+                            <tr
+                              key={emp.userId}
+                              className="border-b hover:bg-gray-50"
+                            >
+                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-black font-semibold">
+                                {emp.username}
+                              </td>
+                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                                <span className="bg-green-100 text-green-800 px-2 sm:px-3 py-1 rounded-full text-xs font-semibold inline-block">
+                                  {emp.completedOrders}
+                                </span>
+                              </td>
+                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                                <span
+                                  onClick={() =>
+                                    handleViewCancelledOrders(emp.userId)
+                                  }
+                                  className="bg-red-100 text-red-800 px-2 sm:px-3 py-1 rounded-full text-xs font-semibold cursor-pointer hover:bg-red-200 transition inline-block"
+                                >
+                                  {emp.cancelledOrders}
+                                </span>
+                              </td>
+                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-black font-bold">
+                                <span className="text-sm sm:text-lg">
+                                  R$ {emp.totalRevenue.toFixed(2)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
 
                     {/* Resumo Geral */}
-                    <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4">
-                      <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                        <p className="text-sm text-gray-600">
-                          Pedidos Finalizados
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+                      <div className="bg-green-50 p-3 sm:p-4 rounded-lg border border-green-200">
+                        <p className="text-xs sm:text-sm text-gray-600">
+                          Finalizados
                         </p>
-                        <p className="text-3xl font-bold text-green-600">
+                        <p className="text-2xl sm:text-3xl font-bold text-green-600 mt-1">
                           {employeePerformance.reduce(
                             (sum, emp) => sum + emp.completedOrders,
                             0,
                           )}
                         </p>
                       </div>
-                      <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                        <p className="text-sm text-gray-600">
-                          Pedidos Cancelados
+                      <div className="bg-red-50 p-3 sm:p-4 rounded-lg border border-red-200">
+                        <p className="text-xs sm:text-sm text-gray-600">
+                          Cancelados
                         </p>
-                        <p className="text-3xl font-bold text-red-600">
+                        <p className="text-2xl sm:text-3xl font-bold text-red-600 mt-1">
                           {employeePerformance.reduce(
                             (sum, emp) => sum + emp.cancelledOrders,
                             0,
                           )}
                         </p>
                       </div>
-                      <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                        <p className="text-sm text-gray-600">Renda Total</p>
-                        <p className="text-3xl font-bold text-purple-600">
+                      <div className="bg-purple-50 p-3 sm:p-4 rounded-lg border border-purple-200">
+                        <p className="text-xs sm:text-sm text-gray-600">
+                          Renda Total
+                        </p>
+                        <p className="text-2xl sm:text-3xl font-bold text-purple-600 mt-1">
                           R${" "}
                           {employeePerformance
                             .reduce((sum, emp) => sum + emp.totalRevenue, 0)
@@ -2214,10 +2257,10 @@ export default function AdminDashboard() {
                     {/* Exibir pedidos cancelados do funcionário selecionado */}
                     {selectedEmployeeForCancelled &&
                       selectedEmployeeCancelledOrders.length > 0 && (
-                        <div className="mt-8 p-6 bg-red-50 rounded-lg border border-red-200">
+                        <div className="p-4 sm:p-6 bg-red-50 rounded-lg border border-red-200">
                           <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-red-800">
-                              Pedidos Cancelados -{" "}
+                            <h3 className="text-sm sm:text-lg font-bold text-red-800">
+                              Cancelados -{" "}
                               {
                                 employeePerformance.find(
                                   (emp) =>
@@ -2234,23 +2277,29 @@ export default function AdminDashboard() {
                               ✕
                             </button>
                           </div>
-                          <div className="space-y-3">
+                          <div className="space-y-2 sm:space-y-3">
                             {selectedEmployeeCancelledOrders.map((order) => (
                               <div
                                 key={order.id}
-                                className="bg-white p-3 rounded border border-red-200"
+                                className="bg-white p-2 sm:p-3 rounded border border-red-200 text-xs sm:text-sm"
                               >
                                 <div className="flex justify-between items-center">
                                   <span className="font-semibold">
                                     Pedido #{order.id.substring(0, 8)}
                                   </span>
-                                  <span className="text-sm text-gray-600">
+                                  <span className="text-gray-600">
                                     {new Date(order.created_at).toLocaleString(
                                       "pt-BR",
+                                      {
+                                        month: "2-digit",
+                                        day: "2-digit",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      },
                                     )}
                                   </span>
                                 </div>
-                                <p className="text-sm text-gray-700 mt-1">
+                                <p className="text-gray-700 mt-1">
                                   <strong>Total:</strong> R${" "}
                                   {order.total.toFixed(2)}
                                 </p>
@@ -2259,7 +2308,7 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       )}
-                  </div>
+                  </>
                 )}
               </div>
             )}
@@ -2269,7 +2318,7 @@ export default function AdminDashboard() {
 
       {showMenuModal && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-3 sm:p-4"
           onClick={() => {
             setShowMenuModal(false);
             setEditingItem(null);
@@ -2287,8 +2336,8 @@ export default function AdminDashboard() {
             className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b flex items-center justify-between flex-shrink-0">
-              <h2 className="text-2xl font-bold text-black">
+            <div className="p-4 sm:p-6 border-b flex items-center justify-between flex-shrink-0">
+              <h2 className="text-lg sm:text-2xl font-bold text-black">
                 {editingItem ? "Editar Item" : "Adicionar Item"}
               </h2>
               <button
@@ -2306,14 +2355,14 @@ export default function AdminDashboard() {
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition flex-shrink-0"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              <div className="p-6 space-y-4">
+              <div className="p-4 sm:p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Nome
                   </label>
                   <input
@@ -2322,13 +2371,13 @@ export default function AdminDashboard() {
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none text-sm"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Descrição
                   </label>
                   <textarea
@@ -2336,14 +2385,14 @@ export default function AdminDashboard() {
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none text-sm"
                     rows={3}
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Categoria
                   </label>
                   <select
@@ -2351,7 +2400,7 @@ export default function AdminDashboard() {
                     onChange={(e) =>
                       setFormData({ ...formData, category: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none text-sm"
                     disabled={!!formData.newCategory}
                     required={!formData.newCategory}
                   >
@@ -2365,7 +2414,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Ou criar nova categoria (opcional)
                   </label>
                   <input
@@ -2374,13 +2423,13 @@ export default function AdminDashboard() {
                     onChange={(e) =>
                       setFormData({ ...formData, newCategory: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none text-sm"
                     placeholder="Digite o nome da nova categoria"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Preço
                   </label>
                   <input
@@ -2390,13 +2439,13 @@ export default function AdminDashboard() {
                     onChange={(e) =>
                       setFormData({ ...formData, price: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none text-sm"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Imagem do Item
                   </label>
                   <label
@@ -2408,10 +2457,10 @@ export default function AdminDashboard() {
                     }}
                     className="group w-full flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center cursor-pointer transition hover:border-black hover:bg-white"
                   >
-                    <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center text-xl">
+                    <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center text-lg">
                       +
                     </div>
-                    <div className="text-sm font-semibold text-gray-700">
+                    <div className="text-xs sm:text-sm font-semibold text-gray-700">
                       Arraste e solte a imagem aqui
                     </div>
                     <div className="text-xs text-gray-500">
@@ -2433,17 +2482,16 @@ export default function AdminDashboard() {
                     />
                   </label>
                   <p className="text-xs text-gray-500 mt-2">
-                    Formatos aceitos: JPG, PNG, WEBP. Tamanho máximo
-                    recomendado: 5MB.
+                    Formatos aceitos: JPG, PNG, WEBP. Máx: 5MB.
                   </p>
                 </div>
 
                 {(imagePreview || formData.image_url) && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                       Preview
                     </label>
-                    <div className="w-32 h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+                    <div className="w-24 sm:w-32 h-24 sm:h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
                       <img
                         src={imagePreview || formData.image_url}
                         alt="Preview"
@@ -2455,11 +2503,11 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="p-6 border-t flex-shrink-0">
+            <div className="p-4 sm:p-6 border-t flex-shrink-0">
               <button
                 type="submit"
                 onClick={handleSaveMenuItem}
-                className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition"
+                className="w-full bg-black text-white py-2 sm:py-3 rounded-lg font-semibold hover:bg-gray-800 transition text-sm sm:text-base"
               >
                 {editingItem ? "Atualizar" : "Adicionar"}
               </button>
@@ -2469,10 +2517,10 @@ export default function AdminDashboard() {
       )}
 
       {showUserModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] flex flex-col">
-            <div className="p-6 border-b flex items-center justify-between flex-shrink-0">
-              <h2 className="text-2xl font-bold text-black">
+            <div className="p-4 sm:p-6 border-b flex items-center justify-between flex-shrink-0">
+              <h2 className="text-lg sm:text-2xl font-bold text-black">
                 Adicionar Usuário
               </h2>
               <button
@@ -2488,15 +2536,15 @@ export default function AdminDashboard() {
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition flex-shrink-0"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
             <form onSubmit={handleSaveUser} className="flex-1 overflow-y-auto">
-              <div className="p-6 space-y-4">
+              <div className="p-4 sm:p-6 space-y-4">
                 {/* Tipo de Usuário - PRIMEIRO */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Tipo de Usuário
                   </label>
                   <select
@@ -2528,10 +2576,10 @@ export default function AdminDashboard() {
                         });
                       }
                     }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none text-sm"
                     required
                   >
-                    <option value="cliente">Cliente</option>
+                    <option value="cliente">Mesa</option>
                     <option value="employee">Funcionário</option>
                     <option value="admin">Administrador</option>
                   </select>
@@ -2540,7 +2588,7 @@ export default function AdminDashboard() {
                 {/* Campos para CLIENTE */}
                 {!userFormData.is_admin && !userFormData.is_employee && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                       Número da Mesa
                     </label>
                     <input
@@ -2586,7 +2634,7 @@ export default function AdminDashboard() {
                           });
                         }
                       }}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                      className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none text-sm"
                       required
                     />
                   </div>
@@ -2596,7 +2644,7 @@ export default function AdminDashboard() {
                 {(userFormData.is_admin || userFormData.is_employee) && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         Nome
                       </label>
                       <input
@@ -2608,13 +2656,13 @@ export default function AdminDashboard() {
                             username: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                        className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none text-sm"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         Telefone
                       </label>
                       <input
@@ -2626,13 +2674,13 @@ export default function AdminDashboard() {
                             phone: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                        className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none text-sm"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         Senha
                       </label>
                       <input
@@ -2644,7 +2692,7 @@ export default function AdminDashboard() {
                             password: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                        className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none text-sm"
                         required
                       />
                     </div>
@@ -2652,10 +2700,10 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              <div className="p-6 border-t flex-shrink-0">
+              <div className="p-4 sm:p-6 border-t flex-shrink-0">
                 <button
                   type="submit"
-                  className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition"
+                  className="w-full bg-black text-white py-2 sm:py-3 rounded-lg font-semibold hover:bg-gray-800 transition text-sm sm:text-base"
                 >
                   Adicionar Usuário
                 </button>
@@ -2667,55 +2715,55 @@ export default function AdminDashboard() {
 
       {showCategoryReorderModal && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-3 sm:p-4"
           onClick={() => setShowCategoryReorderModal(false)}
         >
           <div
             className="bg-white rounded-lg w-full max-w-md max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b flex items-center justify-between flex-shrink-0">
-              <h2 className="text-2xl font-bold text-black">
+            <div className="p-4 sm:p-6 border-b flex items-center justify-between flex-shrink-0">
+              <h2 className="text-lg sm:text-2xl font-bold text-black">
                 Reordenar Categorias
               </h2>
               <button
                 onClick={() => setShowCategoryReorderModal(false)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition flex-shrink-0"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              <div className="p-6 space-y-2">
-                <p className="text-sm text-gray-600 mb-4">
+              <div className="p-4 sm:p-6 space-y-2">
+                <p className="text-xs sm:text-sm text-gray-600 mb-4">
                   Use os botões para reordenar as categorias conforme desejado
                 </p>
                 {orderedCategories.map((category, index) => (
                   <div
                     key={category}
-                    className="flex items-center justify-between p-4 bg-gray-100 rounded-lg"
+                    className="flex items-center justify-between p-3 sm:p-4 bg-gray-100 rounded-lg"
                   >
-                    <span className="font-medium text-gray-800">
+                    <span className="font-medium text-gray-800 text-sm">
                       {index + 1}.{" "}
                       {category.charAt(0).toUpperCase() + category.slice(1)}
                     </span>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 sm:gap-2">
                       <button
                         onClick={() => handleMoveCategoryUp(index)}
                         disabled={index === 0}
-                        className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-1 sm:p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Mover para cima"
                       >
-                        <ArrowUp className="w-4 h-4" />
+                        <ArrowUp className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                       <button
                         onClick={() => handleMoveCategoryDown(index)}
                         disabled={index === orderedCategories.length - 1}
-                        className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-1 sm:p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Mover para baixo"
                       >
-                        <ArrowDown className="w-4 h-4" />
+                        <ArrowDown className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                     </div>
                   </div>
@@ -2723,16 +2771,16 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="p-6 border-t flex-shrink-0 flex gap-2">
+            <div className="p-4 sm:p-6 border-t flex-shrink-0 flex gap-2">
               <button
                 onClick={() => setShowCategoryReorderModal(false)}
-                className="flex-1 bg-gray-300 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-400 transition"
+                className="flex-1 bg-gray-300 text-gray-800 py-2 sm:py-3 rounded-lg font-semibold hover:bg-gray-400 transition text-sm sm:text-base"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSaveCategoryOrder}
-                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+                className="flex-1 bg-blue-600 text-white py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition text-sm sm:text-base"
               >
                 Salvar Ordem
               </button>
