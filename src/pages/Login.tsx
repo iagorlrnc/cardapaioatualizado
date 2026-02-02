@@ -38,7 +38,7 @@ export default function Login({
         if (fetchError) throw fetchError;
         setClientUsers(data || []);
       } catch (err) {
-        console.error("Erro ao buscar usuários:", err);
+        // Silent fail
       }
     };
 
@@ -50,14 +50,12 @@ export default function Login({
           .select("username");
 
         if (error) {
-          console.error("Erro na query:", error);
           throw error;
         }
         const usernames = data?.map((session: any) => session.username) || [];
-        console.log("Usuários logados encontrados:", usernames);
         setLoggedInUsers(usernames);
       } catch (err) {
-        console.error("Erro ao buscar sessões ativas:", err);
+        // Silent fail
       }
     };
 
@@ -105,12 +103,11 @@ export default function Login({
         setError("QR Code inválido");
       }
     } catch (err) {
-      console.error("Erro ao processar QR code:", err);
       setError("Erro ao processar QR code");
     }
   };
 
-//bg-[url('/assets/.jpg')]
+  //bg-[url('/assets/.jpg')]
 
   return (
     <div className="min-h-screen bg-black bg-cover bg-center flex items-center justify-center px-4">
@@ -165,7 +162,7 @@ export default function Login({
               onClick={() => setShowQRReader(true)}
               className="w-full bg-gray-600 text-white py-2 rounded-lg font-semibold hover:bg-gray-700 transition"
             >
-            	Ler QR Code
+              Ler QR Code
             </button>
 
             <button

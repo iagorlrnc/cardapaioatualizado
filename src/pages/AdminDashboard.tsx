@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import * as bcrypt from "bcryptjs";
 import {
   LogOut,
   Users,
@@ -68,6 +69,27 @@ const formatOrderNumericId = (id: string) => {
   }
   if (hash < 100) hash += 100;
   return String(hash).padStart(3, "0");
+};
+
+const compareUsernames = (a: User, b: User) => {
+  const nameA = (a.username ?? "").trim();
+  const nameB = (b.username ?? "").trim();
+  return nameA.localeCompare(nameB, "pt-BR", {
+    numeric: true,
+    sensitivity: "base",
+  });
+};
+
+const compareEmployeeUsernames = (
+  a: { username: string },
+  b: { username: string },
+) => {
+  const nameA = (a.username ?? "").trim();
+  const nameB = (b.username ?? "").trim();
+  return nameA.localeCompare(nameB, "pt-BR", {
+    numeric: true,
+    sensitivity: "base",
+  });
 };
 
 export default function AdminDashboard() {
@@ -210,7 +232,6 @@ export default function AdminDashboard() {
         .order("created_at", { ascending: false });
 
       if (ordersError || !ordersData) {
-        console.error("Erro ao buscar pedidos:", ordersError);
         setOrders([]);
         return;
       }
@@ -245,7 +266,6 @@ export default function AdminDashboard() {
 
       setOrders(completeOrders as any[]);
     } catch (error) {
-      console.error("Erro na busca de pedidos:", error);
       setOrders([]);
     }
   };
@@ -253,9 +273,9 @@ export default function AdminDashboard() {
   const fetchUsers = async () => {
     const { data } = await supabase
       .from("users")
-      .select("*")
+      .select("id, username, is_admin, is_employee, slug, created_at")
       .order("created_at", { ascending: false });
-    if (data) setUsers(data);
+    if (data) setUsers(data as User[]);
   };
 
   const handleOpenCategoryReorder = () => {
@@ -321,7 +341,7 @@ export default function AdminDashboard() {
     // Buscar todos os funcionários
     const { data: employees } = await supabase
       .from("users")
-      .select("*")
+      .select("id, username")
       .eq("is_employee", true);
 
     if (!employees) return;
@@ -363,9 +383,7 @@ export default function AdminDashboard() {
       }),
     );
 
-    setEmployeePerformance(
-      performance.sort((a, b) => b.totalRevenue - a.totalRevenue),
-    );
+    setEmployeePerformance(performance.sort(compareEmployeeUsernames));
   };
 
   const handleViewCancelledOrders = async (employeeId: string) => {
@@ -407,7 +425,6 @@ export default function AdminDashboard() {
         .order("created_at", { ascending: false });
 
       if (ordersError || !dailyOrders) {
-        console.error("Erro ao buscar pedidos:", ordersError);
         toast.error("Erro ao buscar pedidos");
         setGeneratingReport(false);
         return;
@@ -564,13 +581,12 @@ export default function AdminDashboard() {
             };
 
             img.onerror = () => {
-              resolve(""); // Retornar vazio se falhar
+              resolve("");
             };
 
             img.src = "/public/assets/.jpg";
           });
         } catch (e) {
-          console.warn("Erro ao criar imagem redonda:", e);
           return "";
         }
       };
@@ -598,7 +614,7 @@ export default function AdminDashboard() {
             "S",
           );
         } catch (e) {
-          console.warn("Erro ao adicionar imagem ao PDF:", e);
+          // Silently fail if image can't be added
         }
       }
 
@@ -765,8 +781,7 @@ export default function AdminDashboard() {
 
       toast.success("Relatório gerado com sucesso!");
     } catch (error) {
-      console.error("Erro ao gerar relatório:", error);
-      toast.error("Erro ao gerar relatório: " + (error as Error).message);
+      toast.error("Erro ao gerar relatório");
     } finally {
       setGeneratingReport(false);
     }
@@ -876,10 +891,13 @@ export default function AdminDashboard() {
       // Gerar telefone padrão quando não informado
       const phone = userFormData.phone || "0000000000";
 
+      // Hash da senha com bcrypt
+      const hashedPassword = bcrypt.hashSync(userFormData.password, 10);
+
       const { error } = await supabase.from("users").insert({
         username: userFormData.username,
         phone: phone,
-        password_hash: userFormData.password,
+        password_hash: hashedPassword,
         slug: generateSlug(userFormData.username),
         is_admin: userFormData.is_admin,
         is_employee: userFormData.is_employee,
@@ -1053,7 +1071,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-black">
       <header className="bg-white text-black shadow-lg sticky top-0 z-40">
-        <div className="w-full py-8 px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
+        <div className="w-full py-8 px-3 sm:px-4 sm:py-4 flex items-center justify-between">
           <h1 className="text-2xl sm:text-2xl font-bold">
             Painel de Administrador
           </h1>
@@ -2024,123 +2042,128 @@ export default function AdminDashboard() {
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {typeUsers.map((user) => (
-                                      <tr
-                                        key={user.id}
-                                        className="border-b hover:bg-gray-100"
-                                      >
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-black text-xs sm:text-sm">
-                                          <div className="truncate">
-                                            {user.username}
-                                          </div>
-                                          <div className="text-gray-600 text-xs sm:hidden">
+                                    {typeUsers
+                                      .slice()
+                                      .sort(compareUsernames)
+                                      .map((user) => (
+                                        <tr
+                                          key={user.id}
+                                          className="border-b hover:bg-gray-100"
+                                        >
+                                          <td className="px-2 sm:px-4 py-2 sm:py-3 text-black text-xs sm:text-sm">
+                                            <div className="truncate">
+                                              {user.username}
+                                            </div>
+                                            <div className="text-gray-600 text-xs sm:hidden">
+                                              {user.phone || "-"}
+                                            </div>
+                                          </td>
+                                          <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-600 hidden sm:table-cell">
                                             {user.phone || "-"}
-                                          </div>
-                                        </td>
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-600 hidden sm:table-cell">
-                                          {user.phone || "-"}
-                                        </td>
-                                        {type !== "Cliente" && (
-                                          <>
-                                            <td className="px-2 sm:px-4 py-2 sm:py-3 hidden md:table-cell">
-                                              <span
-                                                className={`px-2 py-1 rounded text-xs font-semibold ${
-                                                  user.is_admin
-                                                    ? "bg-green-100 text-green-800"
-                                                    : "bg-gray-100 text-gray-800"
-                                                }`}
-                                              >
-                                                {user.is_admin ? "Sim" : "Não"}
-                                              </span>
-                                            </td>
-                                            <td className="px-2 sm:px-4 py-2 sm:py-3 hidden md:table-cell">
-                                              <span
-                                                className={`px-2 py-1 rounded text-xs font-semibold ${
-                                                  user.is_employee
-                                                    ? "bg-blue-100 text-blue-800"
-                                                    : "bg-gray-100 text-gray-800"
-                                                }`}
-                                              >
-                                                {user.is_employee
-                                                  ? "Sim"
-                                                  : "Não"}
-                                              </span>
-                                            </td>
-                                          </>
-                                        )}
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3">
-                                          <div className="flex gap-1 justify-center flex-wrap">
-                                            {type === "Cliente" ? (
-                                              <>
-                                                <button
-                                                  onClick={() =>
-                                                    handleToggleEmployee(
-                                                      user.id,
-                                                      !!user.is_employee,
-                                                    )
-                                                  }
-                                                  className="px-2 sm:px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-xs"
-                                                  title="Gerenciar permissão de funcionário"
-                                                >
-                                                  Func
-                                                </button>
-                                                <button
-                                                  onClick={() =>
-                                                    handleToggleAdmin(
-                                                      user.id,
-                                                      user.is_admin,
-                                                    )
-                                                  }
-                                                  className="px-2 sm:px-3 py-1 bg-black text-white rounded hover:bg-gray-800 transition text-xs"
-                                                  title="Gerenciar permissão de admin"
-                                                >
-                                                  Admin
-                                                </button>
-                                              </>
-                                            ) : (
-                                              <>
-                                                <button
-                                                  onClick={() =>
-                                                    handleToggleAdmin(
-                                                      user.id,
-                                                      user.is_admin,
-                                                    )
-                                                  }
-                                                  className="px-2 sm:px-3 py-1 bg-black text-white rounded hover:bg-gray-800 transition text-xs flex-1 min-w-20"
-                                                  title="Gerenciar permissão de admin"
+                                          </td>
+                                          {type !== "Cliente" && (
+                                            <>
+                                              <td className="px-2 sm:px-4 py-2 sm:py-3 hidden md:table-cell">
+                                                <span
+                                                  className={`px-2 py-1 rounded text-xs font-semibold ${
+                                                    user.is_admin
+                                                      ? "bg-green-100 text-green-800"
+                                                      : "bg-gray-100 text-gray-800"
+                                                  }`}
                                                 >
                                                   {user.is_admin
-                                                    ? "Rem Ad"
-                                                    : "Tor Ad"}
-                                                </button>
-                                                <button
-                                                  onClick={() =>
-                                                    handleToggleEmployee(
-                                                      user.id,
-                                                      !!user.is_employee,
-                                                    )
-                                                  }
-                                                  className="px-2 sm:px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-xs flex-1 min-w-20"
-                                                  title="Gerenciar permissão de funcionário"
+                                                    ? "Sim"
+                                                    : "Não"}
+                                                </span>
+                                              </td>
+                                              <td className="px-2 sm:px-4 py-2 sm:py-3 hidden md:table-cell">
+                                                <span
+                                                  className={`px-2 py-1 rounded text-xs font-semibold ${
+                                                    user.is_employee
+                                                      ? "bg-blue-100 text-blue-800"
+                                                      : "bg-gray-100 text-gray-800"
+                                                  }`}
                                                 >
                                                   {user.is_employee
-                                                    ? "Rem Fc"
-                                                    : "Tor Fc"}
-                                                </button>
-                                              </>
-                                            )}
-                                            <button
-                                              onClick={() =>
-                                                handleDeleteUser(user.id)
-                                              }
-                                              className="px-2 sm:px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition text-xs"
-                                            >
-                                              <Trash2 className="w-3 h-3 inline" />
-                                            </button>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    ))}
+                                                    ? "Sim"
+                                                    : "Não"}
+                                                </span>
+                                              </td>
+                                            </>
+                                          )}
+                                          <td className="px-2 sm:px-4 py-2 sm:py-3">
+                                            <div className="flex gap-1 justify-center flex-wrap">
+                                              {type === "Cliente" ? (
+                                                <>
+                                                  <button
+                                                    onClick={() =>
+                                                      handleToggleEmployee(
+                                                        user.id,
+                                                        !!user.is_employee,
+                                                      )
+                                                    }
+                                                    className="px-2 sm:px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-xs"
+                                                    title="Gerenciar permissão de funcionário"
+                                                  >
+                                                    Func
+                                                  </button>
+                                                  <button
+                                                    onClick={() =>
+                                                      handleToggleAdmin(
+                                                        user.id,
+                                                        user.is_admin,
+                                                      )
+                                                    }
+                                                    className="px-2 sm:px-3 py-1 bg-black text-white rounded hover:bg-gray-800 transition text-xs"
+                                                    title="Gerenciar permissão de admin"
+                                                  >
+                                                    Admin
+                                                  </button>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <button
+                                                    onClick={() =>
+                                                      handleToggleAdmin(
+                                                        user.id,
+                                                        user.is_admin,
+                                                      )
+                                                    }
+                                                    className="px-2 sm:px-3 py-1 bg-black text-white rounded hover:bg-gray-800 transition text-xs flex-1 min-w-20"
+                                                    title="Gerenciar permissão de admin"
+                                                  >
+                                                    {user.is_admin
+                                                      ? "Remover Admin"
+                                                      : "Tornar Admin"}
+                                                  </button>
+                                                  <button
+                                                    onClick={() =>
+                                                      handleToggleEmployee(
+                                                        user.id,
+                                                        !!user.is_employee,
+                                                      )
+                                                    }
+                                                    className="px-2 sm:px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-xs flex-1 min-w-20"
+                                                    title="Gerenciar permissão de funcionário"
+                                                  >
+                                                    {user.is_employee
+                                                      ? "Remover Funcionário"
+                                                      : "Tornar Funcionário"}
+                                                  </button>
+                                                </>
+                                              )}
+                                              <button
+                                                onClick={() =>
+                                                  handleDeleteUser(user.id)
+                                                }
+                                                className="px-2 sm:px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition text-xs"
+                                              >
+                                                <Trash2 className="w-3 h-3 inline" />
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ))}
                                   </tbody>
                                 </table>
                               </div>

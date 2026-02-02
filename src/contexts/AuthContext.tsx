@@ -5,6 +5,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
+import * as bcrypt from "bcryptjs";
 import { supabase, User } from "../lib/supabase";
 
 interface AuthContextType {
@@ -37,15 +38,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const storedUser = localStorage.getItem("allblack_user");
     if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
+      const parsedUser = JSON.parse(storedUser) as Partial<User>;
+      const normalizedUser: User = {
+        id: parsedUser.id || "",
+        username: parsedUser.username || "",
+        phone: parsedUser.phone || "",
+        is_admin: !!parsedUser.is_admin,
+        is_employee: !!parsedUser.is_employee,
+        slug: parsedUser.slug || "",
+      };
+      setUser(normalizedUser);
       // Se é um cliente (customer), inicia o timer de auto-logout
-      if (!parsedUser.is_admin && !parsedUser.is_employee) {
+      if (!normalizedUser.is_admin && !normalizedUser.is_employee) {
         startAutoLogoutTimer();
       }
     }
     setLoading(false);
   }, []);
+
+  const isBcryptHash = (value: string) => /^\$2[aby]\$/.test(value);
+
+  const verifyPassword = (plain: string, stored: string) => {
+    if (!stored) return false;
+    if (isBcryptHash(stored)) {
+      return bcrypt.compareSync(plain, stored);
+    }
+    return plain === stored;
+  };
+
+  const maybeUpgradePasswordHash = async (
+    userId: string,
+    plain: string,
+    stored: string,
+  ) => {
+    if (!stored || isBcryptHash(stored) || plain !== stored) return;
+    const nextHash = bcrypt.hashSync(plain, 10);
+    await supabase
+      .from("users")
+      .update({ password_hash: nextHash })
+      .eq("id", userId);
+  };
+
+  const persistUser = (userData: User) => {
+    const persisted = {
+      id: userData.id,
+      username: userData.username,
+      is_admin: userData.is_admin,
+      is_employee: userData.is_employee,
+      slug: userData.slug,
+      phone: "",
+    };
+    localStorage.setItem("allblack_user", JSON.stringify(persisted));
+  };
 
   const startAutoLogoutTimer = () => {
     // Limpar timer anterior se existir
@@ -66,7 +110,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isQRLogin: boolean = false,
   ): Promise<boolean> => {
     try {
-      let query = supabase.from("users").select("*").eq("username", username);
+      let query = supabase
+        .from("users")
+        .select(
+          "id, username, phone, is_admin, is_employee, slug, password_hash",
+        )
+        .eq("username", username);
 
       if (isEmployee) {
         // Employee login - precisa verificar senha E is_employee
@@ -86,8 +135,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Se precisa verificar senha (Admin ou Employee), verificar aqui
-      if ((isEmployee || password) && data.password_hash !== password) {
+      if (
+        (isEmployee || password) &&
+        !verifyPassword(password || "", data.password_hash)
+      ) {
         return false;
+      }
+
+      if (isEmployee || password) {
+        await maybeUpgradePasswordHash(
+          data.id,
+          password || "",
+          data.password_hash,
+        );
       }
 
       const userData: User = {
@@ -124,8 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(userData);
-      localStorage.setItem("allblack_user", JSON.stringify(userData));
-      localStorage.setItem("app.current_user", username);
+      persistUser(userData);
 
       // Se é um cliente (customer), inicia o timer de auto-logout
       if (!userData.is_admin && !userData.is_employee) {
@@ -134,7 +193,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return true;
     } catch (error) {
-      console.error("Login error:", error);
       return false;
     }
   };
@@ -146,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from("users")
-        .select("*")
+        .select("id, username, phone, is_admin, is_employee, slug")
         .eq("slug", slug)
         .eq("is_admin", false)
         .eq("is_employee", false)
@@ -189,8 +247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(userData);
-      localStorage.setItem("allblack_user", JSON.stringify(userData));
-      localStorage.setItem("app.current_user", data.username);
+      persistUser(userData);
 
       // Se é um cliente (customer), inicia o timer de auto-logout
       if (!userData.is_admin && !userData.is_employee) {
@@ -199,7 +256,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return true;
     } catch (error) {
-      console.error("Login by slug error:", error);
       return false;
     }
   };
@@ -215,14 +271,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Primeiro, verificar se o admin existe e tem a senha correta
       const { data: adminUser } = await supabase
         .from("users")
-        .select("*")
+        .select("id, password_hash")
         .eq("username", adminUsername)
         .eq("is_admin", true)
         .maybeSingle();
 
-      if (!adminUser || adminUser.password_hash !== adminPassword) {
+      if (
+        !adminUser ||
+        !verifyPassword(adminPassword, adminUser.password_hash)
+      ) {
         return false; // Admin não encontrado ou senha incorreta
       }
+
+      await maybeUpgradePasswordHash(
+        adminUser.id,
+        adminPassword,
+        adminUser.password_hash,
+      );
 
       // Verificar se o nome de usuário já existe
       const { data: existingUser } = await supabase
@@ -235,10 +300,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
+      const hashedPassword = bcrypt.hashSync(password, 10);
+
       const { error } = await supabase.from("users").insert({
         username,
         phone,
-        password_hash: password,
+        password_hash: hashedPassword,
         slug: (() => {
           const base = username
             .trim()
@@ -262,7 +329,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return true;
     } catch (error) {
-      console.error("Registration error:", error);
       return false;
     }
   };
@@ -277,7 +343,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // A mesa permanece marcada como "em uso" até que o funcionário a libere explicitamente
     setUser(null);
     localStorage.removeItem("allblack_user");
-    localStorage.removeItem("app.current_user");
   };
 
   return (

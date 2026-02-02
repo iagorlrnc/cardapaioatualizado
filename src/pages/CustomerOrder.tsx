@@ -381,7 +381,6 @@ export default function CustomerOrder() {
           prev ? { ...prev, status: "cancelled" } : null,
         );
       } catch (error) {
-        console.error("Erro ao cancelar pedido:", error);
         setToastMessage("Erro ao cancelar pedido");
         setShowToast(true);
         toastTimeoutRef.current = window.setTimeout(() => {
@@ -482,15 +481,14 @@ export default function CustomerOrder() {
       }
 
       setLastWaiterCall(Date.now());
-      setToastMessage("Garçom chamado! Aguarde a chegada.");
+      setToastMessage("Garçom solicitado! Aguarde a chegada.");
       setShowToast(true);
       toastTimeoutRef.current = window.setTimeout(() => {
         setShowToast(false);
         toastTimeoutRef.current = null;
       }, 2500);
     } catch (error) {
-      console.error("Erro ao chamar garçom:", error);
-      setToastMessage("Erro ao chamar garçom. Tente novamente.");
+      setToastMessage("Erro ao solicitar garçom. Tente novamente.");
       setShowToast(true);
       toastTimeoutRef.current = window.setTimeout(() => {
         setShowToast(false);
@@ -504,7 +502,6 @@ export default function CustomerOrder() {
   const handleFinishOrder = async () => {
     // Verificações de validação
     if (!user?.id) {
-      console.error("User ID não encontrado:", user);
       setToastMessage("Você precisa estar logado para fazer um pedido.");
       setShowToast(true);
       toastTimeoutRef.current = window.setTimeout(() => {
@@ -539,13 +536,6 @@ export default function CustomerOrder() {
     try {
       const total = getTotal();
 
-      console.log("Iniciando finalização de pedido");
-      console.log("User ID:", user.id);
-      console.log("Cart:", cart);
-      console.log("Total:", total);
-      console.log("Payment method:", paymentMethod);
-      console.log("Observations:", observations);
-
       // Preparar dados do pedido com todos os campos
       const basicOrderData = {
         user_id: user.id,
@@ -555,15 +545,11 @@ export default function CustomerOrder() {
         observations: observations || null,
       };
 
-      console.log("Basic order data:", basicOrderData);
-
       const { data: insertedOrder, error: orderError } = await supabase
         .from("orders")
         .insert(basicOrderData)
         .select()
         .single();
-
-      console.log("Basic insert result:", { insertedOrder, orderError });
 
       if (orderError || !insertedOrder) {
         throw new Error(
@@ -607,7 +593,6 @@ export default function CustomerOrder() {
       setActiveTab("orders");
       setShowCart(false);
     } catch (error) {
-      console.error("Erro ao finalizar pedido:", error);
       setToastMessage("Erro ao finalizar pedido. Tente novamente.");
       setShowToast(true);
       toastTimeoutRef.current = window.setTimeout(() => {
@@ -734,7 +719,7 @@ export default function CustomerOrder() {
                 >
                   <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
                   <span className="text-sm sm:text-base">
-                    {callingWaiter ? "Chamando..." : "Chamar Garçom"}
+                    {callingWaiter ? "Chamando..." : "Solicitar Garçom"}
                   </span>
                 </button>
               </div>

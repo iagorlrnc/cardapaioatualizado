@@ -70,7 +70,6 @@ export default function EmployeeDashboard() {
         .order("created_at", { ascending: false });
 
       if (ordersError) {
-        console.error("Erro ao buscar pedidos:", ordersError);
         setOrders([]);
         setLoading(false);
         return;
@@ -115,7 +114,6 @@ export default function EmployeeDashboard() {
       setOrders(completeOrders as any[]);
       setLoading(false);
     } catch (error) {
-      console.error("Erro na busca de pedidos:", error);
       setOrders([]);
       setLoading(false);
     }
@@ -131,7 +129,7 @@ export default function EmployeeDashboard() {
         .order("username");
       setAllUsers(data || []);
     } catch (error) {
-      console.error("Erro ao buscar usuários:", error);
+      // Silent fail
     }
   };
 
@@ -144,7 +142,7 @@ export default function EmployeeDashboard() {
         .order("created_at", { ascending: false });
       setWaiterCalls(data || []);
     } catch (error) {
-      console.error("Erro ao buscar chamadas de garçom:", error);
+      toast.error("Erro ao buscar chamadas");
     }
   };
 
@@ -159,7 +157,7 @@ export default function EmployeeDashboard() {
 
       fetchWaiterCalls();
     } catch (error) {
-      console.error("Erro ao marcar chamada como concluída:", error);
+      toast.error("Erro ao marcar chamada como concluída");
     }
   };
 
@@ -171,7 +169,7 @@ export default function EmployeeDashboard() {
       const usernames = new Set(data?.map((s: any) => s.username) || []);
       setSessionUsers(usernames);
     } catch (error) {
-      console.error("Erro ao buscar sessões:", error);
+      // Silent fail
     }
   };
 
@@ -196,7 +194,6 @@ export default function EmployeeDashboard() {
       toast.success(`Mesa ${username} reservada!`);
       loadSessionUsers();
     } catch (error) {
-      console.error("Erro ao reservar mesa:", error);
       toast.error("Erro ao reservar mesa");
     }
   };
@@ -219,7 +216,6 @@ export default function EmployeeDashboard() {
       toast.success(`Mesa ${username} liberada!`);
       loadSessionUsers();
     } catch (error) {
-      console.error("Erro ao liberar mesa:", error);
       toast.error("Erro ao liberar mesa");
     }
   };
@@ -270,7 +266,6 @@ export default function EmployeeDashboard() {
         if (employeeExists) {
           updateData.assigned_to = user.id;
         } else {
-          console.warn("Funcionário não encontrado no banco de dados");
           toast.warn(
             "Aviso: Não foi possível atribuir o pedido a você. Por favor, faça login novamente.",
           );
@@ -300,7 +295,6 @@ export default function EmployeeDashboard() {
 
       fetchOrders();
     } catch (error) {
-      console.error("Erro ao atualizar status:", error);
       toast.error("Erro ao atualizar pedido. Tente novamente.");
     }
   };
@@ -338,7 +332,6 @@ export default function EmployeeDashboard() {
       toast.success(`Todos os pedidos da Mesa ${username} foram removidos!`);
       fetchOrders();
     } catch (error) {
-      console.error("Erro ao limpar pedidos:", error);
       toast.error("Erro ao limpar pedidos");
     }
   };

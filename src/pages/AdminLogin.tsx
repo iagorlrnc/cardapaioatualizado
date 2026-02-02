@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as bcrypt from "bcryptjs";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
 import { toast } from "react-toastify";
@@ -46,6 +47,29 @@ export default function AdminLogin({
   const [adminAuthPassword, setAdminAuthPassword] = useState("");
   const [regError, setRegError] = useState("");
   const [regLoading, setRegLoading] = useState(false);
+
+  const isBcryptHash = (value: string) => /^\$2[aby]\$/.test(value);
+
+  const verifyPassword = (plain: string, stored: string) => {
+    if (!stored) return false;
+    if (isBcryptHash(stored)) {
+      return bcrypt.compareSync(plain, stored);
+    }
+    return plain === stored;
+  };
+
+  const maybeUpgradePasswordHash = async (
+    userId: string,
+    plain: string,
+    stored: string,
+  ) => {
+    if (!stored || isBcryptHash(stored) || plain !== stored) return;
+    const nextHash = bcrypt.hashSync(plain, 10);
+    await supabase
+      .from("users")
+      .update({ password_hash: nextHash })
+      .eq("id", userId);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,16 +121,25 @@ export default function AdminLogin({
       // Verificar se o admin existe e tem a senha correta
       const { data: adminUser } = await supabase
         .from("users")
-        .select("*")
+        .select("id, password_hash")
         .eq("username", adminAuthUsername)
         .eq("is_admin", true)
         .maybeSingle();
 
-      if (!adminUser || adminUser.password_hash !== adminAuthPassword) {
+      if (
+        !adminUser ||
+        !verifyPassword(adminAuthPassword, adminUser.password_hash)
+      ) {
         setRegError("Credenciais de administrador inválidas");
         setRegLoading(false);
         return;
       }
+
+      await maybeUpgradePasswordHash(
+        adminUser.id,
+        adminAuthPassword,
+        adminUser.password_hash,
+      );
 
       // Verificar se o nome de usuário já existe
       const { data: existingUser } = await supabase
@@ -122,9 +155,11 @@ export default function AdminLogin({
       }
 
       // Preparar dados do novo usuário
+      const hashedPassword = bcrypt.hashSync(regPassword, 10);
+
       const newUserData: any = {
         username: regUsername,
-        password_hash: regPassword,
+        password_hash: hashedPassword,
         slug: generateSlug(regUsername),
         is_admin: userType === "admin",
         is_employee: userType === "employee",
@@ -160,7 +195,6 @@ export default function AdminLogin({
       setUserType("admin");
       setShowRegister(false);
     } catch (error) {
-      console.error("Erro ao registrar usuário:", error);
       setRegError("Erro ao criar usuário");
     } finally {
       setRegLoading(false);
@@ -171,7 +205,10 @@ export default function AdminLogin({
     <div className="min-h-screen bg-black flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         <div className="mb-6 flex flex-col items-center">
-          <img src="/assets/imagewhite.png" className="w-16 h-16 object-contain mb-2" />
+          <img
+            src="/assets/imagewhite.png"
+            className="w-16 h-16 object-contain mb-2"
+          />
           <h1 className="text-4xl font-bold text-white mb-2 text-center">
             Nome
           </h1>

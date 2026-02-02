@@ -8,7 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export interface User {
   id: string;
   username: string;
-  phone: string;
+  phone?: string;
   is_admin: boolean;
   is_employee?: boolean;
   slug: string;
