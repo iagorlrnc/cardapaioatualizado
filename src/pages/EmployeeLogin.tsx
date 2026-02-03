@@ -1,20 +1,47 @@
 import { useState } from "react";
+import * as bcrypt from "bcryptjs";
 import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../lib/supabase";
+import { toast } from "react-toastify";
+import { adminRegistrationSchema } from "../lib/validationSchemas";
 
 interface EmployeeLoginProps {
   onSwitchToLogin: () => void;
   onSwitchToAdmin: () => void;
 }
 
+const generateSlug = (value: string) => {
+  const base = value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  const suffix =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).slice(2, 10);
+  return base ? `${base}-${suffix}` : suffix;
+};
+
 export default function EmployeeLogin({
   onSwitchToLogin,
   onSwitchToAdmin,
 }: EmployeeLoginProps) {
+  const [showRegister, setShowRegister] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+
+  const [regUsername, setRegUsername] = useState("");
+  const [regPhone, setRegPhone] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regConfirmPassword, setRegConfirmPassword] = useState("");
+  const [regError, setRegError] = useState("");
+  const [regLoading, setRegLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,8 +51,88 @@ export default function EmployeeLogin({
     const success = await login(username, password, true);
 
     if (!success) {
-      setError("Credenciais de funcionário inválidas");
+      setError(
+        "Não foi possível entrar. Verifique usuário e senha e tente novamente.",
+      );
       setLoading(false);
+    }
+  };
+
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegError("");
+
+    try {
+      const validationResult = adminRegistrationSchema.safeParse({
+        username: regUsername,
+        phone: regPhone,
+        password: regPassword,
+        confirmPassword: regConfirmPassword,
+        userType: "employee",
+      });
+
+      if (!validationResult.success) {
+        const firstIssue = validationResult.error.issues?.[0];
+        const message = firstIssue?.message || "Dados inválidos.";
+        setRegError(message);
+        return;
+      }
+
+      setRegLoading(true);
+
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("username")
+        .eq("username", regUsername)
+        .maybeSingle();
+
+      if (existingUser) {
+        setRegError(
+          "Este nome de usuário já está em uso. Escolha outro e tente novamente.",
+        );
+        setRegLoading(false);
+        return;
+      }
+
+      const hashedPassword = bcrypt.hashSync(regPassword, 10);
+
+      const newUserData: any = {
+        username: regUsername,
+        password_hash: hashedPassword,
+        slug: generateSlug(regUsername),
+        is_admin: false,
+        is_employee: true,
+        approval_status: "pending",
+        phone: regPhone,
+      };
+
+      const { error: insertError } = await supabase
+        .from("users")
+        .insert(newUserData);
+
+      if (insertError) {
+        setRegError(
+          `Não foi possível enviar a solicitação. Detalhes: ${insertError.message}`,
+        );
+        setRegLoading(false);
+        return;
+      }
+
+      toast.success(
+        "Solicitação enviada! Seu cadastro ficará pendente até a aprovação do administrador.",
+      );
+
+      setRegUsername("");
+      setRegPhone("");
+      setRegPassword("");
+      setRegConfirmPassword("");
+      setShowRegister(false);
+    } catch (err) {
+      setRegError(
+        "Não foi possível enviar sua solicitação agora. Tente novamente em instantes.",
+      );
+    } finally {
+      setRegLoading(false);
     }
   };
 
@@ -43,68 +150,173 @@ export default function EmployeeLogin({
         </div>
 
         <div className="bg-white rounded-lg shadow-2xl p-8">
-          <h2 className="text-2xl font-bold text-center mb-6 text-black">
-            Login Funcionário
-          </h2>
+          {!showRegister ? (
+            <>
+              <h2 className="text-2xl font-bold text-center mb-6 text-black">
+                Login Funcionário
+              </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nome de Usuário
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
-                required
-              />
-            </div>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nome de Usuário
+                  </label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
+                    required
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Senha
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
-                required
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Senha
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
+                    required
+                  />
+                </div>
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
-                {error}
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Entrando..." : "Entrar"}
+                </button>
+              </form>
+
+              <div className="mt-6 space-y-3">
+                <button
+                  onClick={() => setShowRegister(true)}
+                  className="w-full text-sm text-white bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded-lg transition font-semibold"
+                >
+                  Cadastro
+                </button>
+
+                <div className="text-center space-y-3">
+                  <button
+                    onClick={onSwitchToAdmin}
+                    className="block w-full text-sm text-gray-600 hover:text-black transition"
+                  >
+                    Acesso Administrador{" "}
+                    <span className="font-semibold">Login Admin</span>
+                  </button>
+
+                  <button
+                    onClick={onSwitchToLogin}
+                    className="text-sm text-gray-600 hover:text-black transition"
+                  >
+                    Voltar ao <span className="font-semibold">Login</span>
+                  </button>
+                </div>
               </div>
-            )}
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-center mb-6 text-black">
+                Cadastro de Funcionário
+              </h2>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Entrando..." : "Entrar"}
-            </button>
-          </form>
+              <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nome de Usuário
+                  </label>
+                  <input
+                    type="text"
+                    value={regUsername}
+                    onChange={(e) => setRegUsername(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
+                    required
+                  />
+                </div>
 
-          <div className="mt-6 text-center">
-            <button
-              onClick={onSwitchToAdmin}
-              className="block w-full text-sm text-gray-600 hover:text-black transition mb-3"
-            >
-              Acesso Administrador{" "}
-              <span className="font-semibold">Login Admin</span>
-            </button>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Telefone
+                  </label>
+                  <input
+                    type="tel"
+                    value={regPhone}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, "");
+                      setRegPhone(value);
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
+                    required
+                  />
+                </div>
 
-            <button
-              onClick={onSwitchToLogin}
-              className="text-sm text-gray-600 hover:text-black transition"
-            >
-              Voltar ao <span className="font-semibold">Login</span>
-            </button>
-          </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Senha
+                  </label>
+                  <input
+                    type="password"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Mínimo 8 caracteres, com letra maiúscula e caractere
+                    especial (!@#$%^&* etc.)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Confirmar Senha
+                  </label>
+                  <input
+                    type="password"
+                    value={regConfirmPassword}
+                    onChange={(e) => setRegConfirmPassword(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
+                    required
+                  />
+                </div>
+
+                {regError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
+                    {regError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={regLoading}
+                  className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {regLoading
+                    ? "Enviando solicitação..."
+                    : "Solicitar ao Administrador"}
+                </button>
+              </form>
+
+              <div className="mt-6 text-center">
+                <button
+                  onClick={() => setShowRegister(false)}
+                  className="text-sm text-gray-600 hover:text-black transition"
+                >
+                  Voltar ao <span className="font-semibold">Login</span>
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

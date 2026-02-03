@@ -628,7 +628,7 @@ export default function CustomerOrder() {
         className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100${showWelcome ? " pointer-events-none select-none blur-sm" : ""}`}
       >
         {/* Header */}
-        <header className="fixed top-0 left-0 right-0 z-40 bg-white shadow-md border-b safe-area-top">
+        <header className="sticky top-0 left-0 right-0 z-40 bg-white shadow-md border-b safe-area-top">
           <div className="w-full px-3 sm:px-4 md:px-6 py-4 sm:py-6">
             <div className="flex items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-0">
               <div className="flex items-center gap-1 sm:gap-4">

@@ -3,6 +3,8 @@ import * as bcrypt from "bcryptjs";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
 import { toast } from "react-toastify";
+import { adminRegistrationSchema, passwordSchema } from "../lib/validationSchemas";
+import { z } from "zod";
 
 interface AdminLoginProps {
   onSwitchToLogin: () => void;
@@ -54,7 +56,7 @@ export default function AdminLogin({
     const success = await login(username, password);
 
     if (!success) {
-      setError("Credenciais inválidas");
+      setError("Não foi possível entrar. Verifique usuário e senha e tente novamente.");
       setLoading(false);
     }
   };
@@ -63,31 +65,25 @@ export default function AdminLogin({
     e.preventDefault();
     setRegError("");
 
-    // Validações básicas
-    if (!regUsername.trim()) {
-      setRegError("Nome de usuário é obrigatório");
-      return;
-    }
-
-    // Para admin e funcionário, validar campos adicionais
-    if (!regPhone.trim()) {
-      setRegError("Telefone é obrigatório");
-      return;
-    }
-
-    if (regPassword.length < 6) {
-      setRegError("A senha deve ter no mínimo 6 caracteres");
-      return;
-    }
-
-    if (regPassword !== regConfirmPassword) {
-      setRegError("As senhas não coincidem");
-      return;
-    }
-
-    setRegLoading(true);
-
     try {
+      // Validar com Zod
+      const validationResult = adminRegistrationSchema.safeParse({
+        username: regUsername,
+        phone: regPhone,
+        password: regPassword,
+        confirmPassword: regConfirmPassword,
+        userType: userType,
+      });
+
+      if (!validationResult.success) {
+        const firstIssue = validationResult.error.issues?.[0];
+        const message = firstIssue?.message || "Dados inválidos.";
+        setRegError(message);
+        return;
+      }
+
+      setRegLoading(true);
+
       // Verificar se o nome de usuário já existe
       const { data: existingUser } = await supabase
         .from("users")
@@ -96,7 +92,7 @@ export default function AdminLogin({
         .maybeSingle();
 
       if (existingUser) {
-        setRegError("Nome de usuário já existe");
+        setRegError("Este nome de usuário já está em uso. Escolha outro e tente novamente.");
         setRegLoading(false);
         return;
       }
@@ -121,13 +117,15 @@ export default function AdminLogin({
         .insert(newUserData);
 
       if (insertError) {
-        setRegError(`Erro ao criar usuário: ${insertError.message}`);
+        setRegError(
+          `Não foi possível enviar a solicitação. Detalhes: ${insertError.message}`,
+        );
         setRegLoading(false);
         return;
       }
 
       toast.success(
-        `Solicitação de cadastro enviada! Aguarde aprovação do administrador.`,
+        "Solicitação enviada! Seu cadastro ficará pendente até a aprovação do administrador.",
       );
 
       // Limpar formulário e voltar para login
@@ -138,7 +136,9 @@ export default function AdminLogin({
       setUserType("admin");
       setShowRegister(false);
     } catch (error) {
-      setRegError("Erro ao criar usuário");
+      setRegError(
+        "Não foi possível enviar sua solicitação agora. Tente novamente em instantes.",
+      );
     } finally {
       setRegLoading(false);
     }
@@ -300,6 +300,9 @@ export default function AdminLogin({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
                       required
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Mínimo 8 caracteres, com letra maiúscula e caractere especial (!@#$%^&* etc.)
+                    </p>
                   </div>
 
                   <div>

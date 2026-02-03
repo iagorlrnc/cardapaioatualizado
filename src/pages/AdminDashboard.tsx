@@ -20,6 +20,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { supabase, MenuItem, Order, OrderItem, User } from "../lib/supabase";
 import { toast } from "react-toastify";
 import jsPDF from "jspdf";
+import { passwordSchema } from "../lib/validationSchemas";
 
 type TabType =
   | "dashboard"
@@ -321,15 +322,18 @@ export default function AdminDashboard() {
         .eq("id", userId);
 
       if (error) {
-        toast.error("Erro ao aprovar usuário: " + error.message);
+        toast.error(
+          "Não foi possível aprovar o usuário agora. Detalhes: " +
+            error.message,
+        );
         return;
       }
 
-      toast.success("Usuário aprovado com sucesso!");
+      toast.success("Usuário aprovado! Ele já pode acessar o sistema.");
       fetchPendingUsers();
       fetchUsers();
     } catch (error) {
-      toast.error("Erro ao aprovar usuário");
+      toast.error("Não foi possível aprovar o usuário. Tente novamente.");
     }
   };
 
@@ -338,14 +342,16 @@ export default function AdminDashboard() {
       const { error } = await supabase.from("users").delete().eq("id", userId);
 
       if (error) {
-        toast.error("Erro ao recusar usuário: " + error.message);
+        toast.error(
+          "Não foi possível recusar a solicitação. Detalhes: " + error.message,
+        );
         return;
       }
 
-      toast.success("Solicitação recusada!");
+      toast.success("Solicitação recusada. O usuário não será cadastrado.");
       fetchPendingUsers();
     } catch (error) {
-      toast.error("Erro ao recusar usuário");
+      toast.error("Não foi possível recusar a solicitação. Tente novamente.");
     }
   };
 
@@ -400,10 +406,11 @@ export default function AdminDashboard() {
 
       setCategories(orderedCategories);
       setShowCategoryReorderModal(false);
-      toast.success("Ordem das categorias atualizada com sucesso!");
+      toast.success("Ordem das categorias salva com sucesso.");
     } catch (error) {
       toast.error(
-        "Erro ao salvar ordem das categorias: " + (error as Error).message,
+        "Não foi possível salvar a ordem das categorias. Detalhes: " +
+          (error as Error).message,
       );
     }
   };
@@ -512,7 +519,7 @@ export default function AdminDashboard() {
         .order("created_at", { ascending: false });
 
       if (ordersError || !dailyOrders) {
-        toast.error("Erro ao buscar pedidos");
+        toast.error("Não foi possível carregar os pedidos do dia.");
         setGeneratingReport(false);
         return;
       }
@@ -866,9 +873,9 @@ export default function AdminDashboard() {
       const fileName = `relatorio_diario_${today.toISOString().split("T")[0]}.pdf`;
       pdf.save(fileName);
 
-      toast.success("Relatório gerado com sucesso!");
+      toast.success("Relatório diário gerado e baixado com sucesso.");
     } catch (error) {
-      toast.error("Erro ao gerar relatório");
+      toast.error("Não foi possível gerar o relatório. Tente novamente.");
     } finally {
       setGeneratingReport(false);
     }
@@ -888,7 +895,9 @@ export default function AdminDashboard() {
           .upload(fileName, imageFile);
 
         if (uploadError) {
-          toast.error("Erro ao fazer upload da imagem: " + uploadError.message);
+          toast.error(
+            "Falha ao enviar a imagem. Detalhes: " + uploadError.message,
+          );
           return;
         }
 
@@ -900,7 +909,7 @@ export default function AdminDashboard() {
         imageUrl = publicUrl.publicUrl;
       } catch (error) {
         toast.error(
-          "Erro ao fazer upload da imagem: " + (error as Error).message,
+          "Falha ao enviar a imagem. Detalhes: " + (error as Error).message,
         );
         return;
       }
@@ -944,8 +953,8 @@ export default function AdminDashboard() {
     fetchMenuItems();
     toast.success(
       editingItem
-        ? "Item atualizado com sucesso!"
-        : "Item adicionado com sucesso!",
+        ? "Item atualizado com sucesso."
+        : "Item adicionado ao cardápio com sucesso.",
     );
   };
 
@@ -963,6 +972,18 @@ export default function AdminDashboard() {
     e.preventDefault();
 
     try {
+      // Validar a senha com Zod
+      const passwordValidation = passwordSchema.safeParse(
+        userFormData.password,
+      );
+
+      if (!passwordValidation.success) {
+        const firstIssue = passwordValidation.error.issues?.[0];
+        const errorMessage = firstIssue?.message || "Senha inválida.";
+        toast.error(`Senha inválida: ${errorMessage}`);
+        return;
+      }
+
       // Verificar se o usuário já existe
       const { data: existingUser } = await supabase
         .from("users")
@@ -971,7 +992,7 @@ export default function AdminDashboard() {
         .maybeSingle();
 
       if (existingUser) {
-        toast.error("Erro: Este usuário já existe no sistema!");
+        toast.error("Já existe um usuário com esse nome. Escolha outro.");
         return;
       }
 
@@ -992,7 +1013,9 @@ export default function AdminDashboard() {
       });
 
       if (error) {
-        toast.error("Erro ao criar usuário: " + error.message);
+        toast.error(
+          "Não foi possível criar o usuário. Detalhes: " + error.message,
+        );
         return;
       }
 
@@ -1005,9 +1028,12 @@ export default function AdminDashboard() {
         is_employee: false,
       });
       fetchUsers();
-      toast.success("Usuário criado com sucesso!");
+      toast.success("Usuário criado e liberado para acesso.");
     } catch (error) {
-      toast.error("Erro ao criar usuário: " + (error as Error).message);
+      toast.error(
+        "Não foi possível criar o usuário. Detalhes: " +
+          (error as Error).message,
+      );
     }
   };
 
@@ -1034,7 +1060,10 @@ export default function AdminDashboard() {
           .eq("menu_item_id", id);
 
         if (checkError) {
-          toast.error("Erro ao verificar pedidos: " + checkError.message);
+          toast.error(
+            "Não foi possível verificar pedidos vinculados a este item. Detalhes: " +
+              checkError.message,
+          );
           return;
         }
 
@@ -1051,13 +1080,18 @@ export default function AdminDashboard() {
           .delete()
           .eq("id", id);
         if (error) {
-          toast.error("Erro ao excluir item: " + error.message);
+          toast.error(
+            "Não foi possível excluir o item. Detalhes: " + error.message,
+          );
           return;
         }
-        toast.success("Item excluído com sucesso!");
+        toast.success("Item excluído com sucesso.");
         fetchMenuItems();
       } catch (error) {
-        toast.error("Erro ao excluir item: " + (error as Error).message);
+        toast.error(
+          "Não foi possível excluir o item. Detalhes: " +
+            (error as Error).message,
+        );
       }
     }
   };
@@ -1072,7 +1106,7 @@ export default function AdminDashboard() {
 
   const handleDeleteOrder = async (orderId: string) => {
     await supabase.from("orders").update({ hidden: true }).eq("id", orderId);
-    toast.error("Pedido removido da lista!");
+    toast.success("Pedido ocultado da lista com sucesso.");
     fetchOrders();
   };
 
@@ -1107,10 +1141,13 @@ export default function AdminDashboard() {
           .delete()
           .neq("id", "00000000-0000-0000-0000-000000000000");
 
-        toast.success("Todos os pedidos foram apagados permanentemente!");
+        toast.success("Pedidos e chamadas foram apagados permanentemente.");
         fetchOrders();
       } catch (error) {
-        toast.error("Erro ao limpar dados: " + (error as Error).message);
+        toast.error(
+          "Não foi possível limpar os dados. Detalhes: " +
+            (error as Error).message,
+        );
       }
     }
   };
@@ -1147,12 +1184,19 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteUser = async (userId: string) => {
+    if (!window.confirm("Deseja realmente remover este usuário?")) {
+      return;
+    }
+
     try {
       await supabase.from("users").delete().eq("id", userId);
       fetchUsers();
-      toast.error("Usuário removido com sucesso!");
+      toast.success("Usuário removido com sucesso.");
     } catch (error) {
-      toast.error("Erro ao remover usuário: " + (error as Error).message);
+      toast.error(
+        "Não foi possível remover o usuário. Detalhes: " +
+          (error as Error).message,
+      );
     }
   };
 
@@ -2877,6 +2921,10 @@ export default function AdminDashboard() {
                         className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none text-sm"
                         required
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Mínimo 8 caracteres, com letra maiúscula e caractere
+                        especial (!@#$%^&* etc.)
+                      </p>
                     </div>
                   </>
                 )}
