@@ -43,33 +43,8 @@ export default function AdminLogin({
   const [regPhone, setRegPhone] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
-  const [adminAuthUsername, setAdminAuthUsername] = useState("");
-  const [adminAuthPassword, setAdminAuthPassword] = useState("");
   const [regError, setRegError] = useState("");
   const [regLoading, setRegLoading] = useState(false);
-
-  const isBcryptHash = (value: string) => /^\$2[aby]\$/.test(value);
-
-  const verifyPassword = (plain: string, stored: string) => {
-    if (!stored) return false;
-    if (isBcryptHash(stored)) {
-      return bcrypt.compareSync(plain, stored);
-    }
-    return plain === stored;
-  };
-
-  const maybeUpgradePasswordHash = async (
-    userId: string,
-    plain: string,
-    stored: string,
-  ) => {
-    if (!stored || isBcryptHash(stored) || plain !== stored) return;
-    const nextHash = bcrypt.hashSync(plain, 10);
-    await supabase
-      .from("users")
-      .update({ password_hash: nextHash })
-      .eq("id", userId);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,37 +85,9 @@ export default function AdminLogin({
       return;
     }
 
-    if (!adminAuthUsername.trim() || !adminAuthPassword.trim()) {
-      setRegError("Autenticação de admin é obrigatória");
-      return;
-    }
-
     setRegLoading(true);
 
     try {
-      // Verificar se o admin existe e tem a senha correta
-      const { data: adminUser } = await supabase
-        .from("users")
-        .select("id, password_hash")
-        .eq("username", adminAuthUsername)
-        .eq("is_admin", true)
-        .maybeSingle();
-
-      if (
-        !adminUser ||
-        !verifyPassword(adminAuthPassword, adminUser.password_hash)
-      ) {
-        setRegError("Credenciais de administrador inválidas");
-        setRegLoading(false);
-        return;
-      }
-
-      await maybeUpgradePasswordHash(
-        adminUser.id,
-        adminAuthPassword,
-        adminUser.password_hash,
-      );
-
       // Verificar se o nome de usuário já existe
       const { data: existingUser } = await supabase
         .from("users")
@@ -163,6 +110,7 @@ export default function AdminLogin({
         slug: generateSlug(regUsername),
         is_admin: userType === "admin",
         is_employee: userType === "employee",
+        approval_status: "pending",
       };
 
       newUserData.phone = regPhone;
@@ -178,11 +126,8 @@ export default function AdminLogin({
         return;
       }
 
-      const userTypeLabel =
-        userType === "admin" ? "Administrador" : "Funcionário";
-
       toast.success(
-        `${userTypeLabel} criado com sucesso! Faça login para continuar.`,
+        `Solicitação de cadastro enviada! Aguarde aprovação do administrador.`,
       );
 
       // Limpar formulário e voltar para login
@@ -190,8 +135,6 @@ export default function AdminLogin({
       setRegPhone("");
       setRegPassword("");
       setRegConfirmPassword("");
-      setAdminAuthUsername("");
-      setAdminAuthPassword("");
       setUserType("admin");
       setShowRegister(false);
     } catch (error) {
@@ -337,7 +280,10 @@ export default function AdminLogin({
                     <input
                       type="tel"
                       value={regPhone}
-                      onChange={(e) => setRegPhone(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, "");
+                        setRegPhone(value);
+                      }}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
                       required
                     />
@@ -370,41 +316,6 @@ export default function AdminLogin({
                   </div>
                 </>
 
-                <div className="border-t pt-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    Autenticação de Administrador
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Apenas administradores existentes podem criar novas contas.
-                  </p>
-
-                  <div className="mb-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nome de Usuário do Admin
-                    </label>
-                    <input
-                      type="text"
-                      value={adminAuthUsername}
-                      onChange={(e) => setAdminAuthUsername(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Senha do Admin
-                    </label>
-                    <input
-                      type="password"
-                      value={adminAuthPassword}
-                      onChange={(e) => setAdminAuthPassword(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition"
-                      required
-                    />
-                  </div>
-                </div>
-
                 {regError && (
                   <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
                     {regError}
@@ -416,7 +327,9 @@ export default function AdminLogin({
                   disabled={regLoading}
                   className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {regLoading ? "Cadastrando..." : "Cadastrar"}
+                  {regLoading
+                    ? "Enviando solicitação..."
+                    : "Solicitar ao Administrador"}
                 </button>
               </form>
 

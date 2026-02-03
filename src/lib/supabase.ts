@@ -12,6 +12,8 @@ export interface User {
   is_admin: boolean;
   is_employee?: boolean;
   slug: string;
+  created_at?: string;
+  approval_status?: string;
 }
 
 export interface MenuItem {

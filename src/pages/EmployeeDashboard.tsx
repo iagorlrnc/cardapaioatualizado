@@ -360,9 +360,14 @@ export default function EmployeeDashboard() {
       <header className="bg-white shadow-md border-b sticky top-0 z-40">
         <div className="w-full pt-8 px-3 sm:px-4 md:px-6">
           <div className="flex items-center justify-between py-3 sm:py-4">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
-              Painel de Pedidos
-            </h1>
+            <div>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
+                Painel de Pedidos
+              </h1>
+              <p className="text-sm sm:text-base text-gray-600 mt-1">
+                {user?.username}
+              </p>
+            </div>
             <button
               onClick={() => {
                 logout();

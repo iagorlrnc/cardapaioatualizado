@@ -13,6 +13,8 @@ import {
   ChevronDown,
   ArrowUp,
   ArrowDown,
+  Bell,
+  Check,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase, MenuItem, Order, OrderItem, User } from "../lib/supabase";
@@ -94,7 +96,7 @@ const compareEmployeeUsernames = (
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [orders, setOrders] = useState<
@@ -126,6 +128,9 @@ export default function AdminDashboard() {
   const [showCategoryReorderModal, setShowCategoryReorderModal] =
     useState(false);
   const [orderedCategories, setOrderedCategories] = useState<string[]>([]);
+  const [showPendingRequestsModal, setShowPendingRequestsModal] =
+    useState(false);
+  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [employeePerformance, setEmployeePerformance] = useState<
     Array<{
       userId: string;
@@ -141,6 +146,10 @@ export default function AdminDashboard() {
     useState<any[]>([]);
   const [selectedEmployeeForCancelled, setSelectedEmployeeForCancelled] =
     useState<string | null>(null);
+  const [selectedEmployeeCompletedOrders, setSelectedEmployeeCompletedOrders] =
+    useState<any[]>([]);
+  const [selectedEmployeeForCompleted, setSelectedEmployeeForCompleted] =
+    useState<string | null>(null);
   const [showAllRecentOrders, setShowAllRecentOrders] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
 
@@ -148,6 +157,7 @@ export default function AdminDashboard() {
     fetchMenuItems();
     fetchOrders();
     fetchUsers();
+    fetchPendingUsers();
   }, []);
 
   useEffect(() => {
@@ -172,6 +182,16 @@ export default function AdminDashboard() {
       return () => clearInterval(interval);
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === "users" || showPendingRequestsModal) {
+      const interval = setInterval(() => {
+        fetchPendingUsers();
+      }, 2000); // Atualizar solicitações a cada 2 segundos
+
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, showPendingRequestsModal]);
 
   const fetchMenuItems = async () => {
     const { data } = await supabase
@@ -273,9 +293,60 @@ export default function AdminDashboard() {
   const fetchUsers = async () => {
     const { data } = await supabase
       .from("users")
-      .select("id, username, is_admin, is_employee, slug, created_at")
+      .select("id, username, phone, is_admin, is_employee, slug, created_at")
+      .eq("approval_status", "approved")
       .order("created_at", { ascending: false });
     if (data) setUsers(data as User[]);
+  };
+
+  const fetchPendingUsers = async () => {
+    const { data } = await supabase
+      .from("users")
+      .select("id, username, is_admin, is_employee, slug, created_at")
+      .eq("approval_status", "pending")
+      .order("created_at", { ascending: true });
+    if (data) setPendingUsers(data as User[]);
+  };
+
+  const handleOpenPendingRequests = () => {
+    fetchPendingUsers();
+    setShowPendingRequestsModal(true);
+  };
+
+  const handleApproveUser = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from("users")
+        .update({ approval_status: "approved" })
+        .eq("id", userId);
+
+      if (error) {
+        toast.error("Erro ao aprovar usuário: " + error.message);
+        return;
+      }
+
+      toast.success("Usuário aprovado com sucesso!");
+      fetchPendingUsers();
+      fetchUsers();
+    } catch (error) {
+      toast.error("Erro ao aprovar usuário");
+    }
+  };
+
+  const handleRejectUser = async (userId: string) => {
+    try {
+      const { error } = await supabase.from("users").delete().eq("id", userId);
+
+      if (error) {
+        toast.error("Erro ao recusar usuário: " + error.message);
+        return;
+      }
+
+      toast.success("Solicitação recusada!");
+      fetchPendingUsers();
+    } catch (error) {
+      toast.error("Erro ao recusar usuário");
+    }
   };
 
   const handleOpenCategoryReorder = () => {
@@ -388,6 +459,7 @@ export default function AdminDashboard() {
 
   const handleViewCancelledOrders = async (employeeId: string) => {
     setSelectedEmployeeForCancelled(employeeId);
+    setSelectedEmployeeForCompleted(null);
 
     // Buscar pedidos cancelados deste funcionário
     const { data: cancelledOrders } = await supabase
@@ -398,6 +470,21 @@ export default function AdminDashboard() {
       .order("created_at", { ascending: false });
 
     setSelectedEmployeeCancelledOrders(cancelledOrders || []);
+  };
+
+  const handleViewCompletedOrders = async (employeeId: string) => {
+    setSelectedEmployeeForCompleted(employeeId);
+    setSelectedEmployeeForCancelled(null);
+
+    // Buscar pedidos finalizados deste funcionário
+    const { data: completedOrders } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("assigned_to", employeeId)
+      .eq("status", "completed")
+      .order("created_at", { ascending: false });
+
+    setSelectedEmployeeCompletedOrders(completedOrders || []);
   };
 
   const generateDailyReport = async () => {
@@ -901,6 +988,7 @@ export default function AdminDashboard() {
         slug: generateSlug(userFormData.username),
         is_admin: userFormData.is_admin,
         is_employee: userFormData.is_employee,
+        approval_status: "approved",
       });
 
       if (error) {
@@ -994,7 +1082,19 @@ export default function AdminDashboard() {
         "⚠️ ATENÇÃO: Esta ação irá APAGAR TODOS os pedidos permanentemente do banco de dados. Esta ação não pode ser desfeita. Deseja continuar?",
       )
     ) {
+      // Perguntar se deseja baixar o relatório antes de limpar
+      const downloadReport = confirm(
+        "📊 Caso não tenha baixado o relatório diário, deseja baixá-lo antes de limpar os dados?",
+      );
+
       try {
+        // Se o usuário escolheu baixar o relatório, gera primeiro
+        if (downloadReport) {
+          await generateDailyReport();
+          // Aguardar um pouco para garantir que o download foi iniciado
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+
         // Apagar pedidos
         await supabase
           .from("orders")
@@ -1072,9 +1172,14 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-black">
       <header className="bg-white text-black shadow-lg sticky top-0 z-40">
         <div className="w-full py-8 px-3 sm:px-4 sm:py-4 flex items-center justify-between">
-          <h1 className="text-2xl sm:text-2xl font-bold">
-            Painel de Administrador
-          </h1>
+          <div>
+            <h1 className="text-2xl sm:text-2xl font-bold">
+              Painel de Administrador
+            </h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">
+              {user?.username}
+            </p>
+          </div>
           <button
             onClick={() => {
               logout();
@@ -1964,13 +2069,27 @@ export default function AdminDashboard() {
                   <h2 className="text-xl sm:text-2xl font-bold text-black">
                     Usuários
                   </h2>
-                  <button
-                    onClick={() => setShowUserModal(true)}
-                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition text-xs sm:text-sm w-full sm:w-auto"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Adicionar Usuário
-                  </button>
+                  <div className="flex gap-2 flex-col sm:flex-row">
+                    <button
+                      onClick={handleOpenPendingRequests}
+                      className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-xs sm:text-sm w-full sm:w-auto"
+                    >
+                      {pendingUsers.length > 0 && (
+                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                          {pendingUsers.length}
+                        </span>
+                      )}
+                      <Bell className="w-4 h-4" />
+                      Solicitações
+                    </button>
+                    <button
+                      onClick={() => setShowUserModal(true)}
+                      className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition text-xs sm:text-sm w-full sm:w-auto"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Adicionar Usuário
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-3 sm:space-y-4">
                   {(() => {
@@ -2055,11 +2174,17 @@ export default function AdminDashboard() {
                                               {user.username}
                                             </div>
                                             <div className="text-gray-600 text-xs sm:hidden">
-                                              {user.phone || "-"}
+                                              {user.phone &&
+                                              !/^0+$/.test(user.phone)
+                                                ? user.phone
+                                                : "-"}
                                             </div>
                                           </td>
                                           <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-600 hidden sm:table-cell">
-                                            {user.phone || "-"}
+                                            {user.phone &&
+                                            !/^0+$/.test(user.phone)
+                                              ? user.phone
+                                              : "-"}
                                           </td>
                                           {type !== "Cliente" && (
                                             <>
@@ -2093,34 +2218,7 @@ export default function AdminDashboard() {
                                           )}
                                           <td className="px-2 sm:px-4 py-2 sm:py-3">
                                             <div className="flex gap-1 justify-center flex-wrap">
-                                              {type === "Cliente" ? (
-                                                <>
-                                                  <button
-                                                    onClick={() =>
-                                                      handleToggleEmployee(
-                                                        user.id,
-                                                        !!user.is_employee,
-                                                      )
-                                                    }
-                                                    className="px-2 sm:px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-xs"
-                                                    title="Gerenciar permissão de funcionário"
-                                                  >
-                                                    Func
-                                                  </button>
-                                                  <button
-                                                    onClick={() =>
-                                                      handleToggleAdmin(
-                                                        user.id,
-                                                        user.is_admin,
-                                                      )
-                                                    }
-                                                    className="px-2 sm:px-3 py-1 bg-black text-white rounded hover:bg-gray-800 transition text-xs"
-                                                    title="Gerenciar permissão de admin"
-                                                  >
-                                                    Admin
-                                                  </button>
-                                                </>
-                                              ) : (
+                                              {type !== "Mesa" && (
                                                 <>
                                                   <button
                                                     onClick={() =>
@@ -2136,20 +2234,20 @@ export default function AdminDashboard() {
                                                       ? "Remover Admin"
                                                       : "Tornar Admin"}
                                                   </button>
-                                                  <button
-                                                    onClick={() =>
-                                                      handleToggleEmployee(
-                                                        user.id,
-                                                        !!user.is_employee,
-                                                      )
-                                                    }
-                                                    className="px-2 sm:px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-xs flex-1 min-w-20"
-                                                    title="Gerenciar permissão de funcionário"
-                                                  >
-                                                    {user.is_employee
-                                                      ? "Remover Funcionário"
-                                                      : "Tornar Funcionário"}
-                                                  </button>
+                                                  {!user.is_employee && (
+                                                    <button
+                                                      onClick={() =>
+                                                        handleToggleEmployee(
+                                                          user.id,
+                                                          !!user.is_employee,
+                                                        )
+                                                      }
+                                                      className="px-2 sm:px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-xs flex-1 min-w-20"
+                                                      title="Gerenciar permissão de funcionário"
+                                                    >
+                                                      Tornar Funcionário
+                                                    </button>
+                                                  )}
                                                 </>
                                               )}
                                               <button
@@ -2215,7 +2313,12 @@ export default function AdminDashboard() {
                                 {emp.username}
                               </td>
                               <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
-                                <span className="bg-green-100 text-green-800 px-2 sm:px-3 py-1 rounded-full text-xs font-semibold inline-block">
+                                <span
+                                  onClick={() =>
+                                    handleViewCompletedOrders(emp.userId)
+                                  }
+                                  className="bg-green-100 text-green-800 px-2 sm:px-3 py-1 rounded-full text-xs font-semibold cursor-pointer hover:bg-green-200 transition inline-block"
+                                >
                                   {emp.completedOrders}
                                 </span>
                               </td>
@@ -2276,6 +2379,61 @@ export default function AdminDashboard() {
                         </p>
                       </div>
                     </div>
+
+                    {/* Exibir pedidos finalizados do funcionário selecionado */}
+                    {selectedEmployeeForCompleted &&
+                      selectedEmployeeCompletedOrders.length > 0 && (
+                        <div className="p-4 sm:p-6 bg-green-50 rounded-lg border border-green-200 mb-6">
+                          <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-sm sm:text-lg font-bold text-green-800">
+                              Finalizados -{" "}
+                              {
+                                employeePerformance.find(
+                                  (emp) =>
+                                    emp.userId === selectedEmployeeForCompleted,
+                                )?.username
+                              }
+                            </h3>
+                            <button
+                              onClick={() =>
+                                setSelectedEmployeeForCompleted(null)
+                              }
+                              className="text-green-600 hover:text-green-800 font-bold"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          <div className="space-y-2 sm:space-y-3">
+                            {selectedEmployeeCompletedOrders.map((order) => (
+                              <div
+                                key={order.id}
+                                className="bg-white p-2 sm:p-3 rounded border border-green-200 text-xs sm:text-sm"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <span className="font-semibold">
+                                    Pedido #{order.id.substring(0, 8)}
+                                  </span>
+                                  <span className="text-gray-600">
+                                    {new Date(order.created_at).toLocaleString(
+                                      "pt-BR",
+                                      {
+                                        month: "2-digit",
+                                        day: "2-digit",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      },
+                                    )}
+                                  </span>
+                                </div>
+                                <p className="text-gray-700 mt-1">
+                                  <strong>Total:</strong> R${" "}
+                                  {order.total.toFixed(2)}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                     {/* Exibir pedidos cancelados do funcionário selecionado */}
                     {selectedEmployeeForCancelled &&
@@ -2691,12 +2849,13 @@ export default function AdminDashboard() {
                       <input
                         type="tel"
                         value={userFormData.phone}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "");
                           setUserFormData({
                             ...userFormData,
-                            phone: e.target.value,
-                          })
-                        }
+                            phone: value,
+                          });
+                        }}
                         className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none text-sm"
                         required
                       />
@@ -2806,6 +2965,107 @@ export default function AdminDashboard() {
                 className="flex-1 bg-blue-600 text-white py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition text-sm sm:text-base"
               >
                 Salvar Ordem
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Solicitações Pendentes */}
+      {showPendingRequestsModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={() => setShowPendingRequestsModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 sm:p-6 border-b flex items-center justify-between flex-shrink-0">
+              <h2 className="text-xl sm:text-2xl font-bold text-black">
+                Solicitações Pendentes
+              </h2>
+              <button
+                onClick={() => setShowPendingRequestsModal(false)}
+                className="text-gray-500 hover:text-gray-700 transition"
+              >
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              {pendingUsers.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500 text-sm sm:text-base">
+                    Nenhuma solicitação pendente no momento.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pendingUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg text-black">
+                            {user.username}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            Tipo de conta:{" "}
+                            <span className="font-semibold text-black">
+                              {user.is_admin
+                                ? "Administrador"
+                                : user.is_employee
+                                  ? "Funcionário"
+                                  : "Cliente"}
+                            </span>
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Solicitado em:{" "}
+                            {new Date(user.created_at || "").toLocaleString(
+                              "pt-BR",
+                            )}
+                          </p>
+                        </div>
+                        <div className="flex gap-2 sm:flex-col">
+                          <button
+                            onClick={() => handleApproveUser(user.id)}
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-semibold"
+                          >
+                            <Check className="w-4 h-4" />
+                            Aprovar
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  `Deseja realmente recusar a solicitação de ${user.username}?`,
+                                )
+                              ) {
+                                handleRejectUser(user.id);
+                              }
+                            }}
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-semibold"
+                          >
+                            <X className="w-4 h-4" />
+                            Recusar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 sm:p-6 border-t flex-shrink-0">
+              <button
+                onClick={() => setShowPendingRequestsModal(false)}
+                className="w-full bg-gray-300 text-gray-800 py-2 sm:py-3 rounded-lg font-semibold hover:bg-gray-400 transition text-sm sm:text-base"
+              >
+                Fechar
               </button>
             </div>
           </div>
